@@ -1,0 +1,91 @@
+{
+  "### Instructions ###": 
+    "Enter the local settings items for your installation",
+    "general" : {
+      "base_path" : "C:\\Automation\\jenkins_pipe",
+      "java_cmd" : "java -jar \"C:\\Program Files (x86)\\DBmaestro\\TeamWork\\TeamWorkOracleServer\\Automation\\DBmaestroAgent.jar\"",
+      "staging_path" : "C:\\pipelinescript\\HR",
+	  "server" : "dbmtemplate:8017",
+	  "username" : "dbmguest@dbmaestro.com",
+	  "token" : "gKIn2LyvFxozrXm53aaHiWbkygMLzLfy",
+	  "source_control" : {
+		  "type" : "git",
+		  "remote" : "false"
+		}
+    },
+    "connections" : {
+		"repository" : {
+		  "user" : "twmanagedb",
+		  "password" : "manage#2009",
+		  "connect" : "dbmtemplate:1521/orcl"
+		},
+		"remote" : {
+		  "user" : "dbmaestro_teamwork",
+		  "password" : "Remote#2009",
+		  "connect" : "dbmtemplate:1521/orcl"
+		}
+	 },
+	"branch_map" : {
+		"develop" : [
+		  {
+		  "pipeline" : "Northwind_DEV",
+		  "base_env" : "DIT",
+		  "source_dir" : "C:\\Automation\\dbm_demo\\northwind\\ddl",
+		  "base_schema" : "Northwind-DEV",
+      "file_strategy" : "version",
+      "environments" : [
+			 "DIT",
+			 "QAT"
+		   ],
+		   "approvers" : [
+			 "none",
+			 "dbmguest"
+		   ]
+		  }
+		],
+		"release" : [
+		  {
+		  "pipeline" : "Northwind_RELEASE",
+		  "base_env" : "SIT",
+		  "source_dir" : "C:\\Automation\\dbm_demo\\northwind\\ddl",
+		  "base_schema" : "Northwind-SIT",
+      "file_strategy" : "version",
+      "environments" : [
+			 "SIT",
+			 "STAGE",
+			 "PROD"
+		   ],
+		  "approvers" : [
+		   "dbmguest",
+		   "dbmguest",
+		   "dbmguest"
+		   ]
+		  }
+		],
+		"multi_schema" : [
+		  {
+		  "pipeline" : "Northwind_RELEASE",
+		  "base_env" : "SIT",
+		  "source_dir" : "C:\\Automation\\dbm_demo\\northwind\\ddl",
+		  "base_schema" : "Northwind-SIT,Northwind-SIT_ro",
+      "file_strategy" : "task",
+      "environments" : [
+			 "SIT",
+			 "STAGE",
+			 "PROD"
+		  ],
+      "acomment" : "### Must be at least as many approvers as there are environments ###",
+      "approvers" : [
+		    "dbmguest",
+		    "dbmguest",
+		    "dbmguest"
+		  ],
+      "bcomment" : "### Must be as many schema flags as there are schema, only use if multi-schema ###",
+      "schema_flags" : [
+       "_main",
+       "_alt"
+     ]
+		]
+	}
+}
+
