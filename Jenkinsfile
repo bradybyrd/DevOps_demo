@@ -5,13 +5,13 @@ put things specific to the branch that drives this work. Use the settings map to
 master include.
 */
 // Set this library variable in Jenkins settings Global Pipeline Libraries section
-@Library('DBmGlobal') _
+@Library('DBmGlobal')_
 
 println "#----------- Remote Pipeline Execution ------------#"
 // The keys and values in settings will be added to (or overwrite) the settings in the local_settings.json file
 def settings = [
 	"pipeline" : "MultiBranch",
-  "settings_file" : "C:\\Automation\\jenkinspipe\\local_settings_include.json"  
+  "settings_file" : "C:\\Automation\\jenkins_pipe\\local_settings_include.json"  
 ]
 // Add a properties for Platform and Skip_Packaging more
 properties([

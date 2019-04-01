@@ -1,1 +1,0 @@
-alter table departments modify column "DEPARTMENT_NAME" VARCHAR2(80);
