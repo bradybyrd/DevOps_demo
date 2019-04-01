@@ -1,4 +1,0 @@
-CREATE TABLE "HR"."TESTIMPORT" 
-   (	"I" NUMBER
-   ) ;
-   
