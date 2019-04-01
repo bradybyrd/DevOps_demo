@@ -1,0 +1,1 @@
+alter table locations add (rainfall number);
