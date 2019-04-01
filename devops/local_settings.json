@@ -61,30 +61,6 @@
 		   "dbmguest"
 		   ]
 		  }
-		],
-		"multi_schema" : [
-		  {
-		  "pipeline" : "Northwind_RELEASE",
-		  "base_env" : "SIT",
-		  "source_dir" : "C:\\Automation\\dbm_demo\\northwind\\ddl",
-		  "base_schema" : "Northwind-SIT,Northwind-SIT_ro",
-      "file_strategy" : "task",
-      "environments" : [
-			 "SIT",
-			 "STAGE",
-			 "PROD"
-		  ],
-      "acomment" : "### Must be at least as many approvers as there are environments ###",
-      "approvers" : [
-		    "dbmguest",
-		    "dbmguest",
-		    "dbmguest"
-		  ],
-      "bcomment" : "### Must be as many schema flags as there are schema, only use if multi-schema ###",
-      "schema_flags" : [
-       "_main",
-       "_alt"
-     ]
 		]
 	}
 }
