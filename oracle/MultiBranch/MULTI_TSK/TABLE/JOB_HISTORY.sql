@@ -3,7 +3,8 @@ CREATE TABLE "HR"."JOB_HISTORY"
 	"START_DATE" DATE, 
 	"END_DATE" DATE, 
 	"JOB_ID" VARCHAR2(10), 
-	"DEPARTMENT_ID" NUMBER(4,0)
+	"DEPARTMENT_ID" NUMBER(4,0),
+	"WAS_FIRED" NUMBER(1,0)
    ) ;
    COMMENT ON COLUMN "HR"."JOB_HISTORY"."EMPLOYEE_ID" IS 'A not null column in the complex primary key employee_id+start_date.
 Foreign key to employee_id column of the employee table';
