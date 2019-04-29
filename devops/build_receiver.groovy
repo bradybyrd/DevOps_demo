@@ -30,17 +30,17 @@ def display_result(command, result){
 }
 
 println "#=> Running Build Hook"
-def cmd = "cd C:\\Automation\\MultiBranch && @git log -1 HEAD --pretty=format:%s"
+def cmd = "git log -1 HEAD --pretty=format:%s"
 def res = shell_execute(cmd)
 display_result(cmd,res)
 
 def dir_list = new File("${staging_path}${sep}REPORTS").listFiles()?.sort { -it.lastModified() }
 println "Reports: ${dir_list}"
-def picked = dir_list.head()
+//def picked = dir_list.head()
 println "Dir: ${picked}"
 def cur_report = new File(picked.toString()).listFiles()?.head().toString()
 println "Picked: ${cur_report}"
 //cd C:\\Automation\\MultiBranch && @
-cmd = "git log -1 HEAD --pretty=format:%s"
+cmd = "copy ${cur_report} MP_DEV2\"
 res = shell_execute(cmd)
 display_result(cmd,res)
