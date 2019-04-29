@@ -41,6 +41,6 @@ println "Dir: ${picked}"
 def cur_report = new File(picked.toString()).listFiles()?.head().toString()
 println "Picked: ${cur_report}"
 //cd C:\\Automation\\MultiBranch && @
-cmd = "copy ${cur_report} MP_DEV2\"
+cmd = "copy ${cur_report} MP_DEV2\\"
 res = shell_execute(cmd)
 display_result(cmd,res)
