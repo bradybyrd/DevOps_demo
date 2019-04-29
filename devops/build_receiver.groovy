@@ -35,9 +35,9 @@ def res = shell_execute(cmd)
 display_result(cmd,res)
 
 def dir_list = new File("${staging_path}${sep}REPORTS").listFiles()?.sort { -it.lastModified() }
-println "Reports: ${dir_list}"
-//def picked = dir_list.head()
-println "Dir: ${picked}"
+//println "Reports: ${dir_list}"
+def picked = dir_list.head()
+//println "Dir: ${picked}"
 def cur_report = new File(picked.toString()).listFiles()?.head().toString()
 println "Picked: ${cur_report}"
 //cd C:\\Automation\\MultiBranch && @
