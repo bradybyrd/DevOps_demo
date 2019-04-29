@@ -2,8 +2,38 @@ sep = "\\" //FIXME Reset for unix
 base_path = new File(getClass().protectionDomain.codeSource.location.path).parent
 // Local Variables
 def pipeline = "HR_Tasks"
+def base_schema = "MP_DEV2"
 def staging_path = "C:\\Automation\\MP\\${pipeline}"
+def base_version = "V3.6."
+arg_map = [:]
 
+for (arg in this.args) {
+  //logit arg
+  pair = arg.split("=")
+  if(pair.size() == 2) {
+    arg_map[pair[0].trim()] = pair[1].trim()
+  }else{
+    arg_map[arg] = ""
+  }
+}
+
+if (arg_map.containsKey("action")) {
+  switch (arg_map["action"].toLowerCase()) {
+    case "roll_forward":
+      roll_forward
+      break
+    case "git_trigger":
+      git_trigger()
+      break
+    default:
+      println "Action does not exist"
+	  System.exit(1)
+      break
+  }
+}else{
+	println "Error: specify action=<action> as argument"
+	System.exit(1)
+}
 def shell_execute(cmd, path = "none"){
   def pth = ""
   def command = sep == "/" ? ["/bin/bash", "-c"] : ["cmd", "/c"]
@@ -21,7 +51,6 @@ def shell_execute(cmd, path = "none"){
   return outtxt
 }
 
-
 def display_result(command, result){
 	println "#------------------------------------------------------#"
 	println "Running: ${command}"
@@ -29,18 +58,65 @@ def display_result(command, result){
 	println "err> " + result["stderr"]
 }
 
-println "#=> Running Build Hook"
-def cmd = "git log -1 HEAD --pretty=format:%s"
-def res = shell_execute(cmd)
-display_result(cmd,res)
+def message_box(msg, def mtype = "sep") {
+  def tot = 80
+  def start = ""
+  def res = ""
+  msg = (msg.size() > 65) ? msg[0..64] : msg
+  def ilen = tot - msg.size()
+  if (mtype == "sep"){
+    start = "#${"-" * (ilen/2).toInteger()} ${msg} "
+    res = "${start}${"-" * (tot - start.size() + 1)}#"
+  }else{
+    res = "#${"-" * tot}#\n"
+    start = "#${" " * (ilen/2).toInteger()} ${msg} "
+    res += "${start}${" " * (tot - start.size() + 1)}#\n"
+    res += "#${"-" * tot}#\n"
+  }
+  logit res
+  return res
+}
 
-def dir_list = new File("${staging_path}${sep}REPORTS").listFiles()?.sort { -it.lastModified() }
-//println "Reports: ${dir_list}"
-def picked = dir_list.head()
-//println "Dir: ${picked}"
-def cur_report = new File(picked.toString()).listFiles()?.head().toString()
-println "Picked: ${cur_report}"
-//cd C:\\Automation\\MultiBranch && @
-cmd = "copy ${cur_report} MP_DEV2\\"
-res = shell_execute(cmd)
-display_result(cmd,res)
+def separator( def ilength = 82){
+  def dashy = "-" * (ilength - 2)
+  println "#${dashy}#"
+}
+
+// #---------------------- MAIN ----------------------------------#
+
+def git_trigger() {
+	println "#=> Processing Build Commands"
+	def cmd = "git log -1 HEAD --pretty=format:%s"
+	def res = shell_execute(cmd)
+	display_result(cmd,res)
+	//Pick new files in commit
+	// copy to packaging
+	// upgrade
+}
+
+def roll_forward() {
+	// Build has been run in dbmaestro step first
+	def do_deploy = System.getenv("Package_and_Deploy").trim()
+	def workspace = System.getenv("WORKSPACE").trim()
+	def cur_version = "${base_version}${System.getenv("BUILD_NUMBER").trim()}"
+	def dir_list = new File("${staging_path}${sep}REPORTS").listFiles()?.sort { -it.lastModified() }
+	//println "Reports: ${dir_list}"
+	def picked = dir_list.head()
+	//println "Dir: ${picked}"
+	def cur_report = new File(picked.toString()).listFiles()?.head().toString()
+	println "Picked: ${cur_report}"
+	cmd = "copy ${cur_report} ${base_schema}\\"
+	res = shell_execute(cmd)
+	display_result(cmd,res)
+	if(do_deploy == "Yes"){
+		cmd = "mkdir ${staging_dir}${sep}${cur_version}"
+		res = shell_execute(cmd)
+		display_result(cmd,res)
+		dir_list = new File("${workspace}${sep}${base_schema").listFiles()?.sort { -it.lastModified() }
+		picked = dir_list.head().toString()
+		cmd = "copy ${picked} ${staging_dir}${sep}${cur_version}${sep}"
+		res = shell_execute(cmd)
+		display_result(cmd,res)
+	}	
+}
+
