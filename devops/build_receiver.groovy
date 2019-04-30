@@ -20,7 +20,7 @@ for (arg in this.args) {
 if (arg_map.containsKey("action")) {
   switch (arg_map["action"].toLowerCase()) {
     case "roll_forward":
-      roll_forward
+      roll_forward()
       break
     case "git_trigger":
       git_trigger()
