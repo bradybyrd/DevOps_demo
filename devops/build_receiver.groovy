@@ -112,7 +112,7 @@ def roll_forward() {
 		cmd = "mkdir ${staging_dir}${sep}${cur_version}"
 		res = shell_execute(cmd)
 		display_result(cmd,res)
-		dir_list = new File("${workspace}${sep}${base_schema").listFiles()?.sort { -it.lastModified() }
+		dir_list = new File("${workspace}${sep}${base_schema}").listFiles()?.sort { -it.lastModified() }
 		picked = dir_list.head().toString()
 		cmd = "copy ${picked} ${staging_dir}${sep}${cur_version}${sep}"
 		res = shell_execute(cmd)
