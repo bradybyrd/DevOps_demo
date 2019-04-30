@@ -25,6 +25,9 @@ if (arg_map.containsKey("action")) {
     case "git_trigger":
       git_trigger()
       break
+    case "stage_files":
+      stage_files()
+      break
     default:
       println "Action does not exist"
 	  System.exit(1)
@@ -105,8 +108,8 @@ def roll_forward() {
 	//println "Dir: ${picked}"
 	def cur_report = new File(picked.toString()).listFiles()?.head().toString()
 	println "Picked: ${cur_report}"
-	cmd = "copy ${cur_report} ${base_schema}\\"
-	res = shell_execute(cmd)
+	def cmd = "copy ${cur_report} ${base_schema}\\"
+	def res = shell_execute(cmd)
 	display_result(cmd,res)
 	if(do_deploy == "Yes"){
 		cmd = "mkdir ${staging_path}${sep}${base_schema}${sep}${cur_version}"
@@ -120,3 +123,24 @@ def roll_forward() {
 	}	
 }
 
+def stage_files(){
+	// optional copy files step in package and deploy
+	def do_staging = System.getenv("STAGE_FILES").trim()
+	def workspace = System.getenv("WORKSPACE").trim()
+	def cur_version = System.getenv("VERSION").trim()
+	def strip_version = cur_version
+	if(cur_version.startsWith("V")){
+		strip_version = cur_version[1..-1]
+	}else{
+		cur_version = "V${cur_version}"
+	}
+	if(do_staging == "Yes"){
+		def cmd = "mkdir ${staging_path}${sep}${base_schema}${sep}${cur_version}"
+		def res = shell_execute(cmd)
+		display_result(cmd,res)
+		cmd = "copy \"${workspace}${sep}Deploy${sep}${strip_version}\\*\" ${staging_path}${sep}${base_schema}${sep}${cur_version}${sep}"
+		res = shell_execute(cmd)
+		display_result(cmd,res)
+	}	
+	
+}
