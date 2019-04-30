@@ -117,6 +117,8 @@ def roll_forward() {
 		display_result(cmd,res)
 		dir_list = new File("${workspace}${sep}${base_schema}").listFiles()?.sort { -it.lastModified() }
 		picked = dir_list.head().toString()
+		message_box("Version Created - ${cur_version}")
+		println "# In path: ${staging_path}${sep}${base_schema}${sep}${cur_version}"
 		cmd = "copy \"${picked}\" ${staging_path}${sep}${base_schema}${sep}${cur_version}${sep}"
 		res = shell_execute(cmd)
 		display_result(cmd,res)
@@ -134,7 +136,11 @@ def stage_files(){
 	}else{
 		cur_version = "V${cur_version}"
 	}
+	message_box("Package and Deploy - ${cur_version}")
+	println "# In path: ${staging_path}${sep}${base_schema}${sep}${cur_version}"
+		
 	if(do_staging == "Yes"){
+		println "# Copying scripts from: ${workspace}${sep}Deploy${sep}${strip_version}"
 		def cmd = "mkdir ${staging_path}${sep}${base_schema}${sep}${cur_version}"
 		def res = shell_execute(cmd)
 		display_result(cmd,res)
