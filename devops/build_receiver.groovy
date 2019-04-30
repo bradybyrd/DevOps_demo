@@ -88,10 +88,15 @@ def separator( def ilength = 82){
 // #---------------------- MAIN ----------------------------------#
 
 def git_trigger() {
-	println "#=> Processing Build Commands"
+	def reg = ~/.*\[Version: (.*)\].*/
 	def cmd = "git log -1 HEAD --pretty=format:%s"
 	def res = shell_execute(cmd)
+	def msg = res["stdout"]
+	message_box("Git Trigger")
+	println "# Commit: ${msg}"
 	display_result(cmd,res)
+	def result = msg.replaceFirst(reg, '$1')
+	println "Got Version: ${result}"
 	//Pick new files in commit
 	// copy to packaging
 	// upgrade
