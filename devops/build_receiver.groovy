@@ -109,12 +109,12 @@ def roll_forward() {
 	res = shell_execute(cmd)
 	display_result(cmd,res)
 	if(do_deploy == "Yes"){
-		cmd = "mkdir ${staging_path}${sep}${cur_version}"
+		cmd = "mkdir ${staging_path}${sep}${base_schema}${sep}${cur_version}"
 		res = shell_execute(cmd)
 		display_result(cmd,res)
 		dir_list = new File("${workspace}${sep}${base_schema}").listFiles()?.sort { -it.lastModified() }
 		picked = dir_list.head().toString()
-		cmd = "copy ${picked} ${staging_path}${sep}${cur_version}${sep}"
+		cmd = "copy \"${picked}\" ${staging_path}${sep}${base_schema}${sep}${cur_version}${sep}"
 		res = shell_execute(cmd)
 		display_result(cmd,res)
 	}	
