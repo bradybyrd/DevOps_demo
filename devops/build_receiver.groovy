@@ -88,16 +88,24 @@ def separator( def ilength = 82){
 // #---------------------- MAIN ----------------------------------#
 
 def git_trigger() {
-	def reg = ~/.*\[Version: (.*)\].*/
+	def reg = ~/.*\[DBCR: (.*)\].*/
 	def cmd = "git log -1 HEAD --pretty=format:%s"
 	def res = shell_execute(cmd)
 	def msg = res["stdout"]
+	def commit = System.getenv("GIT_COMMIT").trim()
 	message_box("Git Trigger")
 	println "# Commit: ${msg}"
-	display_result(cmd,res)
+	println "# Revision: ${commit}"
+	//display_result(cmd,res)
 	def result = msg.replaceFirst(reg, '$1')
-	println "Got Version: ${result}"
+	println "Version: ${result}"
 	//Pick new files in commit
+	/// git diff-tree --no-commit-id --name-only -r 32b0f0dd6e4bd810f3edc4bcd8a114f8f98a65ea
+	cmd = "git diff-tree --no-commit-id --name-only -r ${commit}"
+	res = shell_execute(cmd)
+	display_result(cmd,res)
+	def files = res["stdout"].split("\n")
+	println "Files: ${files}"
 	// copy to packaging
 	// upgrade
 }
