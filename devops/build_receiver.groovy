@@ -1,10 +1,10 @@
 sep = "\\" //FIXME Reset for unix
 base_path = new File(getClass().protectionDomain.codeSource.location.path).parent
 // Local Variables
-def pipeline = "HR_Tasks"
-def base_schema = "MP_DEV2"
-def staging_path = "C:\\Automation\\MP\\${pipeline}"
-def base_version = "V3.6."
+pipeline = "HR_Tasks"
+base_schema = "MP_DEV2"
+staging_path = "C:\\Automation\\MP\\${pipeline}"
+base_version = "V3.6."
 arg_map = [:]
 
 for (arg in this.args) {
