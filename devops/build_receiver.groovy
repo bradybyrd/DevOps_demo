@@ -62,10 +62,10 @@ def display_result(command, result){
 }
 
 def message_box(msg, def mtype = "sep") {
-  def tot = 80
+  def tot = 100
   def start = ""
   def res = ""
-  msg = (msg.size() > 65) ? msg[0..64] : msg
+  msg = (msg.size() > 85) ? msg[0..84] : msg
   def ilen = tot - msg.size()
   if (mtype == "sep"){
     start = "#${"-" * (ilen/2).toInteger()} ${msg} "
@@ -76,7 +76,7 @@ def message_box(msg, def mtype = "sep") {
     res += "${start}${" " * (tot - start.size() + 1)}#\n"
     res += "#${"-" * tot}#\n"
   }
-  logit res
+  println res
   return res
 }
 
