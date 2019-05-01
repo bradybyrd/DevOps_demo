@@ -1,0 +1,1 @@
+alter table locations add (metro_area varchar2(40), metro_pop number);
