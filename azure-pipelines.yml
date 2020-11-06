@@ -23,6 +23,6 @@ stages:
           steps:
           - script: |
               echo Deploying Atlas via API
-              cd ${Parameters.basePath}
-              python3.7 atlas_rest.py action=cluster_info
+              cd /home/main-admin/devops
+              /usr/bin/python3.7 atlas_rest.py action=cluster_info
             displayName: Atlas cluster info
