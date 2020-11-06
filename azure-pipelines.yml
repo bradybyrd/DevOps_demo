@@ -9,6 +9,7 @@ variables:
   Parameters.userName: 'main_admin'
   Parameters.password: 'jkaj5kldfj6jkgj23k6llgsl'
 
+stages:
 - stage: deploy
   jobs:
   - deployment: DeployDB
