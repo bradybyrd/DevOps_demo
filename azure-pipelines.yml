@@ -15,7 +15,7 @@ stages:
   - deployment: DeployDB
     displayName: deploy Atlas
     pool:
-      vmImage: 'Ubuntu-latest'
+      vmImage: 'BB-DEVOps'
     environment: 'INT'
     strategy:
       runOnce:
