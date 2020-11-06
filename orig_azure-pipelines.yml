@@ -1,0 +1,44 @@
+resources:
+- repo: self
+
+pool:
+  name: Demo
+#Your build pipeline references the ‘Parameters.jarPath’ variable, which you’ve selected to be settable at queue time. Create or edit the build pipeline for this YAML file, define the variable on the Variables tab, and then select the option to make it settable at queue time. See https://go.microsoft.com/fwlink/?linkid=865971
+#Your build pipeline references an undefined variable named ‘Parameters.authType’. Create or edit the build pipeline for this YAML file, define the variable on the Variables tab. See https://go.microsoft.com/fwlink/?linkid=865972
+#Your build pipeline references an undefined variable named ‘Parameters.packageName’. Create or edit the build pipeline for this YAML file, define the variable on the Variables tab. See https://go.microsoft.com/fwlink/?linkid=865972
+#Your build pipeline references the ‘Parameters.jarPath’ variable, which you’ve selected to be settable at queue time. Create or edit the build pipeline for this YAML file, define the variable on the Variables tab, and then select the option to make it settable at queue time. See https://go.microsoft.com/fwlink/?linkid=865971
+#Your build pipeline references an undefined variable named ‘Parameters.authType’. Create or edit the build pipeline for this YAML file, define the variable on the Variables tab. See https://go.microsoft.com/fwlink/?linkid=865972
+variables:
+  Parameters.projectName: 'HumanResources'
+  Parameters.server: 'DBmJohnHancock'
+  Parameters.userName: 'automation@dbmaestro.com'
+  Parameters.password: 'jkaj5kldfj6jkgj23k6llgsl'
+
+steps:
+- task: CopyFiles@2
+  displayName: CopySourceFiles
+  inputs:
+    SourceFolder: 'C:\Automation\dbm_demo\hr_demo\versions\1.0.4'
+    TargetFolder: 'C:\Automation\ScriptRepo\DelphDBm\HumanResources\HR_RS\V1.0.4'
+
+- task: dbmaestro.DBmaestro-automation.dbmaestro-package-release-task.dbmaestro-package@7
+  displayName: 'DBmaestro Package'
+  inputs:
+    projectName: '$(Parameters.projectName)'
+    jarPath: '$(Parameters.jarPath)'
+    server: '$(Parameters.server)'
+    authType: '$(Parameters.authType)'
+    userName: '$(Parameters.userName)'
+    password: '$(Parameters.password)'
+
+- task: dbmaestro.DBmaestro-automation.dbmaestro-upgrade-release-task.dbmaestro-upgrade@7
+  displayName: 'DBmaestro Upgrade_75'
+  inputs:
+    projectName: '$(Parameters.projectName)'
+    environmentName: '$(Parameters.environmentName)'
+    packageName: '$(Parameters.packageName)'
+    jarPath: '$(Parameters.jarPath)'
+    server: '$(Parameters.server)'
+    authType: '$(Parameters.authType)'
+    userName: '$(Parameters.userName)'
+    password: '$(Parameters.password)'
