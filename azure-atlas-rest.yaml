@@ -1,0 +1,10 @@
+##-------------------------------------------------##
+## Azure Deploy YAML
+resources:
+- repo: self
+
+variables:
+  Parameters.basePath: '/home/main-admin/devops'
+  Parameters.server: 'INT-ubuntu'
+  Parameters.userName: 'main_admin'
+  Parameters.password: 'jkaj5kldfj6jkgj23k6llgsl'
