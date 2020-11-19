@@ -14,8 +14,7 @@ stages:
   jobs:
   - deployment: DeployDB
     displayName: deploy Atlas
-    pool:
-      vmImage: 'BB-DEVOps'
+    pool: atlas_script_node
     environment: 'INT'
     strategy:
       runOnce:
