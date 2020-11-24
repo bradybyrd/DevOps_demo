@@ -25,4 +25,10 @@ steps:
     connectionType: 'connectedServiceName'
     serviceConnection: 'atlas1'
     method: 'GET'
+    headers: |
+      {
+      "Content-Type" : "application/json",
+      "Authorization" : "Basic Rk1MVU1MQ1E6ZWI5MzI5YjktNjVjNC00MjlmLTliNGUtZTM1YzhhZDcxOTE0"
+      }
+
     waitForCompletion: 'false'
