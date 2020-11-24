@@ -5,6 +5,28 @@ resources:
 
 variables:
   Parameters.basePath: '/home/main-admin/devops'
+  Parameters.sampleCurl: 'curl -X GET -u "FMLUMLCQ:eb9329b9-65c4-429f-9b4e-e35c8ad71914" --digest -i "https://cloud.mongodb.com/api/atlas/v1.0"'
+  Parameters.baseUrl: 'https://cloud.mongodb.com/api/atlas/v1.0'
   Parameters.server: 'INT-ubuntu'
-  Parameters.userName: 'main_admin'
-  Parameters.password: 'jkaj5kldfj6jkgj23k6llgsl'
+  Parameters.cred: 'Rk1MVU1MQ1E6ZWI5MzI5YjktNjVjNC00MjlmLTliNGUtZTM1YzhhZDcxOTE0'
+  Parameters.userName: 'FMLUMLCQ'
+  Parameters.password: 'eb9329b9-65c4-429f-9b4e-e35c8ad71914'
+
+steps:
+# Invoke REST API
+# Invoke a REST API as a part of your pipeline.
+- task: InvokeRESTAPI@1
+  inputs:
+    connectionType: 'generic' # Options: connectedServiceName, connectedServiceNameARM
+    serviceConnection: 'atlas1' # Required when connectionType == ConnectedServiceName
+    #azureServiceConnection: # Required when connectionType == ConnectedServiceNameARM
+    method: 'GET' # Options: OPTIONS, GET, HEAD, POST, PUT, DELETE, TRACE, PATCH
+    headers: |
+      {
+      "Content-Type" : "application/json", 
+      }
+  
+    #body: # Required when method != GET && Method != HEAD
+    #urlSuffix: # Optional
+    waitForCompletion: true # Options: true, false
+    #successCriteria: # Optional
