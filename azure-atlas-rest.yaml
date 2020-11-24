@@ -18,8 +18,8 @@ steps:
 - task: InvokeRESTAPI@1
   inputs:
     connectionType: 'generic' # Options: connectedServiceName, connectedServiceNameARM
-    serviceConnection: 'atlas1' # Required when connectionType == ConnectedServiceName
-    #azureServiceConnection: # Required when connectionType == ConnectedServiceNameARM
+    genericServiceConnection: 'atlas1'
+    #serviceConnection: 'atlas1' # Required when connectionType == ConnectedServiceName
     method: 'GET' # Options: OPTIONS, GET, HEAD, POST, PUT, DELETE, TRACE, PATCH
     headers: |
       {
