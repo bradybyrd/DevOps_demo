@@ -15,6 +15,14 @@ steps:
 - task: InvokeRESTAPI@1
   inputs:
     connectionType: 'connectedServiceName'
+    serviceConnection: 'iptest'
+    method: 'GET'
+    waitForCompletion: 'false'
+
+# Basic Atlas call to project.
+- task: InvokeRESTAPI@2
+  inputs:
+    connectionType: 'connectedServiceName'
     serviceConnection: 'atlas1'
     method: 'GET'
     waitForCompletion: 'false'
