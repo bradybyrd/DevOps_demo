@@ -20,7 +20,7 @@ steps:
     waitForCompletion: 'false'
 
 # Basic Atlas call to project.
-- task: InvokeRESTAPI@2
+- task: InvokeRESTAPI@1
   inputs:
     connectionType: 'connectedServiceName'
     serviceConnection: 'atlas1'
