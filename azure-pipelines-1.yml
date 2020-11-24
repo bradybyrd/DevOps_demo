@@ -1,0 +1,31 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+- main
+
+pool: server
+
+steps:
+- script: echo Please let me Rest!
+  displayName: 'Rest Area'
+
+# Invoke REST API
+# Invoke a REST API as a part of your pipeline.
+- task: InvokeRESTAPI@1
+  inputs:
+    connectionType: 'generic' # Options: connectedServiceName, connectedServiceNameARM
+    serviceConnection: 'atlas1' # Required when connectionType == ConnectedServiceName
+    #azureServiceConnection: # Required when connectionType == ConnectedServiceNameARM
+    method: 'GET' # Options: OPTIONS, GET, HEAD, POST, PUT, DELETE, TRACE, PATCH
+    headers: |
+      {
+      "Content-Type" : "application/json", 
+      }
+  
+    #body: # Required when method != GET && Method != HEAD
+    #urlSuffix: # Optional
+    waitForCompletion: true # Options: true, false
+    #successCriteria: # Optional
