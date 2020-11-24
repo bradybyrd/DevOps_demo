@@ -9,9 +9,6 @@ trigger:
 pool: server
 
 steps:
-- script: echo Please let me Rest!
-  displayName: 'Rest Area'
-
 # Invoke REST API
 # Invoke a REST API as a part of your pipeline.
 - task: InvokeRESTAPI@1
