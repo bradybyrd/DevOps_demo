@@ -1,0 +1,34 @@
+#  BJB 12/3/20 Multistep Atlas Pipeline
+#  Relies on resource: atlas_script_node where
+#  there is a python lib/script atlas_rest.py
+
+resources:
+- repo: self
+
+variables:
+  basePath: '/home/main-admin/devops'
+  server: 'INT-ubuntu'
+  userName: 'main_admin'
+  password: 'jkaj5kldfj6jkgj23k6llgsl'
+
+stages:
+- stage: deploy
+  jobs:
+  - deployment: DeployDB
+    displayName: Atlas Cluster Info
+    pool: atlas_script_node
+    environment: 'INT'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - script: |
+              echo Deploying Atlas via API
+              cd ${{ variables.basePath }}
+              /usr/bin/python3.7 atlas_rest.py action=cluster_info
+              displayName: Atlas cluster info
+          - script: |
+              echo Deploying Atlas via API
+              cd /home/main-admin/devops
+              /usr/bin/python3.7 atlas_rest.py action=user_add user=${{ variables.userName }}:${{ variables.password }}
+              displayName: Atlas user-creation

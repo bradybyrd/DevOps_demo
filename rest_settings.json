@@ -1,0 +1,15 @@
+{
+    "o_uri" : "mongodb+srv://m10basicagain-vmwqj.mongodb.net",
+    "uri" : "mongodb://localhost",
+    "database" : "directory_svc",
+    "collection" : "paths",
+    "o_username" : "main_admin",
+    "username" : "admin",
+    "password" : "bugsyBoo",
+    "version" : "1.0",
+    "project_id" : "5d4d7ed3f2a30b18f4f88946",
+    "api_key" : "Rk1MVU1MQ1E6ZWI5MzI5YjktNjVjNC00MjlmLTliNGUtZTM1YzhhZDcxOTE0",
+    "api_public_key" : "FMLUMLCQ",
+    "api_private_key" : "eb9329b9-65c4-429f-9b4e-e35c8ad71914",
+    "base_url" : "https://cloud.mongodb.com/api/atlas/v1.0"
+}
