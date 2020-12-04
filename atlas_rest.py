@@ -5,7 +5,7 @@
 import sys
 import os
 import csv
-from collections import OrderedDict
+#from collections import OrderedDict
 import json
 import datetime
 import random
@@ -14,11 +14,11 @@ import re
 import multiprocessing
 import pprint
 import getopt
-import bson
-from bson.objectid import ObjectId
+#import bson
+#from bson.objectid import ObjectId
 from bb_util import Util
 from datetime import datetime
-from pymongo import MongoClient
+#from pymongo import MongoClient
 
 '''
 #------------------------------------------#
