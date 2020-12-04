@@ -42,13 +42,15 @@ def atlas_cluster_info():
     pprint.pprint(result)
 
 def atlas_user_add():
+    secret = ARGS["user"]
+    pair = secret.split(":")
     obj = {
       "database_name" : "admin",
       "roles" : [
         {"databaseName" : "admin", "roleName" : "MyNewRole"}
       ],
-      "username" : "MyNewUser",
-      "password" : "doublesecret"
+      "username" : pair[0],
+      "password" : pair[1]
     }
     url = base_url + f"/groups/{project_id}/databaseUsers?pretty=true"
     result = curl_post(url)

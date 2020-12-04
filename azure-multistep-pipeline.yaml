@@ -6,7 +6,7 @@ resources:
 - repo: self
 
 variables:
-  basePath: '/home/main-admin/devops'
+  basePath: '/home/main-admin/DevOps_demo'
   server: 'INT-ubuntu'
   userName: 'main_admin'
   password: 'jkaj5kldfj6jkgj23k6llgsl'
@@ -29,6 +29,6 @@ stages:
               displayName: Atlas cluster info
           - script: |
               echo Deploying Atlas via API
-              cd /home/main-admin/devops
+              cd ${{ variables.basePath }}
               /usr/bin/python3.7 atlas_rest.py action=user_add user=${{ variables.userName }}:${{ variables.password }}
               displayName: Atlas user-creation
