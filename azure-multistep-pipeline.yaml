@@ -22,7 +22,7 @@ stages:
       runOnce:
         deploy:
           steps:
-          - bash: cd ${{ variables.basePath }} && git checkout . && git pull origin master
+          - bash: cd ${{ variables.basePath }} && git checkout . --force && git pull origin master
             displayName: Git Pull
           - script: |
               echo Deploying Atlas via API
