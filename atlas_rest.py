@@ -55,7 +55,7 @@ def atlas_user_add():
       "username" : pair[0],
       "password" : pair[1]
     }
-    url = base_url + f"/groups/{settings["project_id"]}/databaseUsers?pretty=true"
+    url = base_url + f'/groups/{settings["project_id"]}/databaseUsers?pretty=true'
     result = curl_post(url)
 
 
