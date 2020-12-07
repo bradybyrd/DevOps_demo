@@ -42,6 +42,9 @@ def atlas_cluster_info():
     pprint.pprint(result)
 
 def atlas_user_add():
+    if "user" not in ARGS:
+        print("Send user=<user:password>")
+        sys.exit(1)
     secret = ARGS["user"]
     pair = secret.split(":")
     obj = {
@@ -90,6 +93,8 @@ if __name__ == "__main__":
         sys.exit(1)
     elif ARGS["action"] == "org_info":
         atlas_org_info()
+    elif ARGS["action"] == "user_add":
+        atlas_user_add()
     elif ARGS["action"] == "cluster_info":
         atlas_cluster_info()
     elif ARGS["action"] == "test":
