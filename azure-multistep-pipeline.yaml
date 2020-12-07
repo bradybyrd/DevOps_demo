@@ -22,13 +22,15 @@ stages:
       runOnce:
         deploy:
           steps:
+          - bash: git checkout . && git pull origin master
+            displayName: Git Pull
           - script: |
               echo Deploying Atlas via API
               cd ${{ variables.basePath }}
               /usr/bin/python3.7 atlas_rest.py action=cluster_info
-              displayName: Atlas cluster info
+            displayName: Atlas cluster info
           - script: |
               echo Deploying Atlas via API
               cd ${{ variables.basePath }}
               /usr/bin/python3.7 atlas_rest.py action=user_add user=${{ variables.userName }}:${{ variables.password }}
-              displayName: Atlas user-creation
+            displayName: Atlas user-creation
