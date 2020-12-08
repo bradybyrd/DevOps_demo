@@ -11,5 +11,10 @@
     "api_key" : "Rk1MVU1MQ1E6ZWI5MzI5YjktNjVjNC00MjlmLTliNGUtZTM1YzhhZDcxOTE0",
     "api_public_key" : "FMLUMLCQ",
     "api_private_key" : "eb9329b9-65c4-429f-9b4e-e35c8ad71914",
-    "base_url" : "https://cloud.mongodb.com/api/atlas/v1.0"
+    "base_url" : "https://cloud.mongodb.com/api/atlas/v1.0",
+    "templates" : {
+      "M10" : {"region" : "US_EAST_1", "disk_gb" : 30, "iops": 100},
+      "M30" : {"region" : "US_EAST_1", "disk_gb" : 100, "iops" : 300},
+      "M50" : {"region" : "US_EAST_1", "disk_gb" : 300, "iops" : 900}
+    }
 }

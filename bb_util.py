@@ -54,10 +54,10 @@ class Util:
         result = subprocess.run(cmd, capture_output=True)
         self.logit("The exit code was: %d" % result.returncode)
         self.logit("#--------------- STDOUT ---------------#")
-        self.logit(result.stdout)
+        self.logit(result.stdout.decode('ascii'))
         if result.stderr:
             self.logit("#--------------- STDERR ---------------#")
-            self.logit(result.stderr)
+            self.logit(result.stderr.decode('ascii'))
         return result
 
     def separator(self, ilength = 102):
@@ -92,7 +92,7 @@ class Util:
         message_bytes = txt.encode('utf-8')
         bytesdecode = base64.b64decode(message_bytes)
         message = bytesdecode.decode('utf-8')
-        print(message)
+        #print(message)
         #return(message.replace(f'{self.cypher}xx',''))
         return(message)
 
