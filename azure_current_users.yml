@@ -28,17 +28,7 @@ stages:
           - bash: cd ${{ variables.basePath }} && git checkout . --force && git pull origin master
             displayName: Git Pull
           - script: |
-              echo Verifying Cluster Info
-              cd ${{ variables.basePath }}
-              /usr/bin/python3.7 atlas_rest.py action=cluster_info
-            displayName: Atlas cluster info
-          - script: |
               echo Creating Database UserAdmin
               cd ${{ variables.basePath }}
-              /usr/bin/python3.7 atlas_rest.py action=user_add user=${{ variables.userName }}:${{ variables.password }}
-            displayName: Atlas user-creation
-          - script: |
-              echo Deploying Atlas Cluster
-              cd ${{ variables.basePath }}
-              /usr/bin/python3.7 atlas_rest.py action=create_cluster name=${{ variables.clusterName }} template=${{ variables.template}} cloud=${{ variables.cloud }}
-            displayName: Atlas cluster-creation
+              /usr/bin/python3.7 atlas_rest.py action=users
+            displayName: Atlas users

@@ -43,6 +43,12 @@ def atlas_cluster_info():
     bb.message_box("Atlas Cluster Info", "title")
     pprint.pprint(result)
 
+def atlas_users():
+    url = base_url + f'/groups/{settings["project_id"]}/databaseUsers?pretty=true'
+    result = rest_get(url)
+    bb.message_box("Atlas User Info", "title")
+    pprint.pprint(result)
+
 def atlas_user_add():
     if "user" not in ARGS:
         print("Send user=<user:password>")
@@ -73,20 +79,24 @@ def atlas_create_cluster():
     name = f"apiCluster{random.randint(1,20)}"
     if "name" in ARGS:
         name = ARGS["name"]
-    template = settings["templates"][t_name.upper()]
+    provider = "AWS"
+    if "cloud" in ARGS:
+        provider = ARGS["cloud"].upper()
+    template = settings["templates"][provider][t_name.upper()]
     obj = {
       "name" : name,
       "numShards" : 1,
       "replicationFactor" : 3,
       "providerSettings" : {
-        "providerName" : "AWS",
+        "providerName" : provider,
         "regionName" : template["region"],
-        "instanceSizeName" : t_name.upper(),
-        "diskIOPS" : template["iops"]
+        "instanceSizeName" : t_name.upper()
       },
       "diskSizeGB" : template["disk_gb"],
       "backupEnabled" : False
     }
+    if provider == "AWS":
+        obj["providerSettings"]["diskIOPS"] = template["iops"]
     url = base_url + f'/groups/{settings["project_id"]}/clusters?pretty=true'
     result = rest_post(url, {"data" : obj})
     bb.message_box("Response")
@@ -156,6 +166,8 @@ if __name__ == "__main__":
         atlas_org_info()
     elif ARGS["action"] == "user_add":
         atlas_user_add()
+    elif ARGS["action"] == "users":
+        atlas_users()
     elif ARGS["action"] == "cluster_info":
         atlas_cluster_info()
     elif ARGS["action"] == "create_cluster":

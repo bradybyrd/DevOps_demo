@@ -13,8 +13,20 @@
     "api_private_key" : "eb9329b9-65c4-429f-9b4e-e35c8ad71914",
     "base_url" : "https://cloud.mongodb.com/api/atlas/v1.0",
     "templates" : {
-      "M10" : {"region" : "US_EAST_1", "disk_gb" : 30, "iops": 100},
-      "M30" : {"region" : "US_EAST_1", "disk_gb" : 100, "iops" : 300},
-      "M50" : {"region" : "US_EAST_1", "disk_gb" : 300, "iops" : 900}
+      "AWS": {
+        "M10" : {"region" : "US_EAST_1", "disk_gb" : 30, "iops": 100},
+        "M30" : {"region" : "US_EAST_1", "disk_gb" : 100, "iops" : 300},
+        "M50" : {"region" : "US_EAST_1", "disk_gb" : 300, "iops" : 900}
+      },
+      "AZURE" : {
+        "M10" : {"region" : "US_EAST_2", "disk_gb" : 30},
+        "M30" : {"region" : "US_EAST_2", "disk_gb" : 100},
+        "M50" : {"region" : "US_EAST_2", "disk_gb" : 300}
+      },
+      "GCP" : {
+        "M10" : {"region" : "CENTRAL_US", "disk_gb" : 30, "iops": 100},
+        "M30" : {"region" : "CENTRAL_US", "disk_gb" : 100, "iops" : 300},
+        "M50" : {"region" : "CENTRAL_US", "disk_gb" : 300, "iops" : 900}
+      }
     }
 }
