@@ -22,7 +22,10 @@ class Util:
         cur_date = datetime.datetime.now().strftime("%m/%d/%Y %H:%M:%S")
         stamp = f"{cur_date}|{log_type}> "
         for line in message.splitlines():
-            cleaned = self.sanitize(line)
+            if log_type == "SECRET":
+                cleaned = line
+            else:
+                cleaned = self.sanitize(line)
             print(f"{stamp}{cleaned}")
 
     def message_box(self, msg, mtype = "sep"):

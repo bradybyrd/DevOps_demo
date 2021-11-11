@@ -1,16 +1,15 @@
 {
-    "o_uri" : "mongodb+srv://m10basicagain-vmwqj.mongodb.net",
-    "uri" : "mongodb://localhost",
-    "database" : "directory_svc",
+    "uri" : "mongodb+srv://m10basicagain-vmwqj.mongodb.net",
+    "cluster_name" : "MigrateDemo2",
+    "database" : "billing",
     "collection" : "paths",
-    "o_username" : "main_admin",
-    "username" : "admin",
-    "password" : "bugsyBoo",
+    "username" : "main_admin",
+    "password" : "*********",
     "version" : "1.0",
     "project_id" : "5d4d7ed3f2a30b18f4f88946",
-    "api_key" : "Rk1MVU1MQ1E6ZWI5MzI5YjktNjVjNC00MjlmLTliNGUtZTM1YzhhZDcxOTE0",
+    "org_id" : "5e384d3179358e03d842ead1",
+    "api_key" : "------------------------------------------",
     "api_public_key" : "FMLUMLCQ",
-    "api_private_key" : "eb9329b9-65c4-429f-9b4e-e35c8ad71914",
     "base_url" : "https://cloud.mongodb.com/api/atlas/v1.0",
     "templates" : {
       "AWS": {
@@ -27,6 +26,20 @@
         "M10" : {"region" : "CENTRAL_US", "disk_gb" : 30, "iops": 100},
         "M30" : {"region" : "CENTRAL_US", "disk_gb" : 100, "iops" : 300},
         "M50" : {"region" : "CENTRAL_US", "disk_gb" : 300, "iops" : 900}
+      },
+      "test" : {
+        "name" : "__CLUSTER_NAME__",
+        "numShards" : 1,
+        "replicationFactor" : 3,
+        "providerSettings" : {
+          "providerName" : "AWS",
+          "regionName" : "US_EAST_1",
+          "instanceSizeName" : "__INSTANCE_SIZE__",
+          "diskIOPS" : 120,
+          "encryptEBSVolume" : false
+        },
+        "diskSizeGB" : "__DISK_SPACE__",
+        "backupEnabled" : true
       }
     }
 }
