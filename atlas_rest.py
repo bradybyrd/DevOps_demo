@@ -9,6 +9,7 @@ from collections import OrderedDict
 import json
 import datetime as dt
 import random
+import pathlib
 import time
 import re
 import multiprocessing
@@ -55,6 +56,9 @@ def atlas_cluster_info(details = {}):
         details["verbose"] = True
     if "name" in ARGS:
         cluster_name = ARGS["name"]
+        url = f'{base_url}/groups/{project_id}/clusters/{cluster_name}'
+    elif "name" in details:
+        cluster_name = details["name"]
         url = f'{base_url}/groups/{project_id}/clusters/{cluster_name}'
     elif "all" in ARGS or "all" in details:
         url = f'{base_url}/clusters'
@@ -427,14 +431,23 @@ def atlas_log_files(details = {"verbose" : True}):
     '''
     Get log files every xx minutes and push to mongo
     '''
-    foo = "bar"
-    cluster = "m10basicagain-shard-00-00.vmwqj.mongodb.net"
+    cluster = "M10BasicAgain"
+    log_dir = settings["log_path"]
     start_time = dt.datetime.now() - dt.timedelta(minutes=15)
     end_time = dt.datetime.now()
-    get_log_file(cluster, start_time, end_time, details)
+    bb.message_box(f'Fetching Atlas logs for {start_time.strftime("%m/%d/%Y")}, {cluster} between {start_time.strftime("%H:%M:%S")}-{end_time.strftime("%H:%M:%S")}', "title")
+    path = pathlib.Path(log_dir)
+    path.mkdir(parents=True, exist_ok=True)
+    result = atlas_cluster_info({"name" : cluster, "quiet" : True})
+    c_string = result["connectionStrings"]["standard"]
+    members = c_string.split(",")
+    for node in members:
+        host = node.replace("mongodb://","")
+        host = re.sub("\:27017.*","",host)
+        get_log_file(host, start_time, end_time, log_dir, details)
 
 
-def get_log_file(cluster, start, end, details = {}):
+def get_log_file(cluster, start, end, log_path, details = {}):
     '''
     curl --user '{PUBLIC-KEY}:{PRIVATE-KEY}' --digest \
  --header 'Accept: application/gzip' \
@@ -447,12 +460,14 @@ def get_log_file(cluster, start, end, details = {}):
     #end_date = int((end - unixstart).total_seconds())
     start_date = int(start.timestamp())
     end_date = int(end.timestamp())
-    details["filename"] = f'mongodb_{end_date}.gz'
-    #url = f'{base_url}/groups/{settings["project_id"]}/clusters/{cluster}/logs/mongodb.gz'
+    fil = f'log_{cluster}_{end_date}.gz'
+    file_path = os.path.join(log_path, fil)
+    details["filename"] = file_path
+    if not "quiet" in details:
+        bb.logit(f'Node: {cluster}, Saving: {fil}')
     url = f'{base_url}/groups/{settings["project_id"]}/clusters/{cluster}/logs/mongodb.gz?startDate={start_date}&endDate={end_date}'
     result = rest_get_file(url, details)
     if not "quiet" in details:
-        bb.message_box(f'Fetching Atlas logs for {start.strftime("%m/%d/%Y")}, {cluster} between {start.strftime("%H:%M:%S")}-{end.strftime("%H:%M:%S")}', "bar")
         pprint.pprint(result)
     return result #result["results"]
 
