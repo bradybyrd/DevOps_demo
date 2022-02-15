@@ -7,7 +7,7 @@ import os
 import csv
 from collections import OrderedDict
 import json
-import datetime
+import datetime as dt
 import random
 import time
 import re
@@ -18,7 +18,6 @@ import copy
 import bson
 from bson.objectid import ObjectId
 from bb_util import Util
-from datetime import datetime
 import requests
 from requests.auth import HTTPDigestAuth
 from pymongo import MongoClient
@@ -29,7 +28,7 @@ from pymongo import MongoClient
   Call v1 rest api for Atlas
 #
 '''
-settings_file = "rest_settings.json"
+settings_file = "rest_secret_settings.json"
 
 def atlas_org_info(details = {}):
     url = base_url
@@ -74,7 +73,7 @@ def atlas_cluster_info(details = {}):
     return result
 
 def atlas_users(details = {}):
-    url = base_url + f'/users?pretty=true'
+    url = base_url + f'/orgs/{settings["org_id"]}/users?pretty=true'
     result = rest_get(url, details)
     if not "quiet" in details:
         bb.message_box("Atlas User Info", "title")
@@ -96,6 +95,62 @@ def atlas_user_audit(details = {}):
     bb.message_box("User Rights Audit", "title")
     #clusters = atlas_cluster_info({"quiet" : True, "all" : True})
     projects = atlas_project_info({"quiet" : True})
+    org_users = atlas_users({"quiet" : True})
+    client = client_connection()
+    db = client[settings["database"]]
+    collection = "user_audit"
+    #  Get a list of departments from cluster metadata
+    project_names = {}
+    user_rights = []
+    clusters = []
+    cnt = 0
+    bb.logit("#--- Projects ---#")
+    bb.logit(f'Logging to: {settings["database"]}.{collection}')
+    for item in projects:
+        project_names[item["id"]] = item["name"]
+        cur_clusters = atlas_cluster_info({"quiet" : True, "project_id" : item["id"]})
+        clusters = clusters + cur_clusters
+        bb.logit(f'Collecting clusters - {item["name"]}')
+
+    bulk_docs = []
+    for entry in org_users:
+        idoc = OrderedDict()
+        idoc["type"] = "org_user"
+        idoc["email"] = entry["emailAddress"]
+        idoc["user"] = f'{entry["firstName"]} {entry["lastName"]}'
+        idoc["id"] = entry["id"]
+        org_privs = []
+        access = []
+        idoc["all_access"] = False
+        for item in entry["roles"]:
+            if "orgId" in item:
+                org_privs.append(item["roleName"])
+                if item["roleName"] == "ORG_OWNER":
+                    idoc["all_access"] = True
+                    access.append({"project" : "ALL PROJECTS", "info" : "ALL PROJECTS, ALL CLUSTERS - ORG_OWNER", "cluster" : "ALL CLUSTERS", "role" : item["roleName"]})
+                else:
+                    idoc["all_access"] = False
+                    access.append({"project" : "ALL PROJECTS", "info" : f'ALL PROJECTS, ALL CLUSTERS - {item["roleName"]}', "cluster" : "ALL CLUSTERS", "role" : item["roleName"]})
+            else: #Project Access
+                for inst in clusters:
+                    if item["groupId"] == inst["groupId"]:
+                        project = project_names[inst["groupId"]]
+                        rights = f'{project} - {item["roleName"]}'
+                        info = f'{rights}, {inst["name"]}(v{inst["mongoDBVersion"]}) - {inst["stateName"]}'
+                        idoc["all_access"] = False
+                        access.append({"project" : project, "info" : info, "role" : item["roleName"], "cluster" : inst["name"], "provider_settings" : inst["providerSettings"], "version" : inst["mongoDBVersion"]})
+            cnt += 1
+        bb.logit(f'{idoc["user"]} - Inserted: {cnt} audits')
+        idoc["cluster_access"] = access
+        bulk_docs.append(idoc)
+    if len(bulk_docs) > 0:
+        db[collection].insert_many(bulk_docs)
+    bb.logit("#------------ All Done ----------------#")
+
+def atlas_db_user_audit(details = {}):
+    bb.message_box("User Rights Audit", "title")
+    #clusters = atlas_cluster_info({"quiet" : True, "all" : True})
+    projects = atlas_project_info({"quiet" : True})
     client = client_connection()
     db = client[settings["database"]]
     collection = "user_audit"
@@ -114,6 +169,7 @@ def atlas_user_audit(details = {}):
         bulk_docs = []
         for entry in cur_users:
             idoc = OrderedDict()
+            idoc["type"] = "db_user"
             idoc["project"] = item["name"]
             idoc["user"] = entry["username"]
             idoc["database_name"] = entry["databaseName"]
@@ -237,8 +293,8 @@ def atlas_department_accounting(details = {}):
         ipos += 1
     ipos = 0
     bb.logit("#--- Processing Line Items ---#")
-    billing["startDate"] = datetime.datetime.strptime(billing["startDate"],"%Y-%m-%dT%H:%M:%SZ")
-    billing["endDate"] = datetime.datetime.strptime(billing["endDate"],"%Y-%m-%dT%H:%M:%SZ")
+    billing["startDate"] = dt.datetime.strptime(billing["startDate"],"%Y-%m-%dT%H:%M:%SZ")
+    billing["endDate"] = dt.datetime.strptime(billing["endDate"],"%Y-%m-%dT%H:%M:%SZ")
     for line in billing["lineItems"]:
         dept = "unknown"
         cur = f'unknown-{ipos}'
@@ -367,8 +423,43 @@ def atlas_search_indexes():
     bb.message_box("Atlas Search Index Info", "title")
     pprint.pprint(result)
 
+def atlas_log_files(details = {"verbose" : True}):
+    '''
+    Get log files every xx minutes and push to mongo
+    '''
+    foo = "bar"
+    cluster = "m10basicagain-shard-00-00.vmwqj.mongodb.net"
+    start_time = dt.datetime.now() - dt.timedelta(minutes=15)
+    end_time = dt.datetime.now()
+    get_log_file(cluster, start_time, end_time, details)
+
+
+def get_log_file(cluster, start, end, details = {}):
+    '''
+    curl --user '{PUBLIC-KEY}:{PRIVATE-KEY}' --digest \
+ --header 'Accept: application/gzip' \
+ --request GET "https://cloud.mongodb.com/api/atlas/v1.0/groups/{GROUP-ID}/clusters/{HOSTNAME}/logs/mongodb.gz?startDate=&endDate=<unixepoch>" \
+ --output "mongodb.gz
+    '''
+    details["headers"] = {"Content-Type" : "application/json", "Accept" : "application/gzip" }
+    unixstart = dt.datetime(1970,1,1)
+    #start_date = int((start - unixstart).total_seconds())
+    #end_date = int((end - unixstart).total_seconds())
+    start_date = int(start.timestamp())
+    end_date = int(end.timestamp())
+    details["filename"] = f'mongodb_{end_date}.gz'
+    #url = f'{base_url}/groups/{settings["project_id"]}/clusters/{cluster}/logs/mongodb.gz'
+    url = f'{base_url}/groups/{settings["project_id"]}/clusters/{cluster}/logs/mongodb.gz?startDate={start_date}&endDate={end_date}'
+    result = rest_get_file(url, details)
+    if not "quiet" in details:
+        bb.message_box(f'Fetching Atlas logs for {start.strftime("%m/%d/%Y")}, {cluster} between {start.strftime("%H:%M:%S")}-{end.strftime("%H:%M:%S")}', "bar")
+        pprint.pprint(result)
+    return result #result["results"]
+
 def rest_get(url, details = {}):
   headers = {"Content-Type" : "application/json", "Accept" : "application/json" }
+  if "headers" in details:
+      headers = details["headers"]
   api_pair = bb.desecret(api_key).split(":")
   response = requests.get(url, auth=HTTPDigestAuth(api_pair[0], api_pair[1]), headers=headers)
   result = response.content.decode('ascii')
@@ -379,8 +470,46 @@ def rest_get(url, details = {}):
       bb.logit(f"Response: {result}")
   return(json.loads(result))
 
+def rest_get_file(url, details = {}):
+  # https://stackoverflow.com/questions/36292437/requests-gzip-http-download-and-write-to-disk
+  headers = {"Content-Type" : "application/json", "Accept" : "application/json" }
+  if "headers" in details:
+      headers = details["headers"]
+  api_pair = bb.desecret(api_key).split(":")
+  local_filename = details["filename"]
+  try:
+      response = requests.get(url, auth=HTTPDigestAuth(api_pair[0], api_pair[1]), headers=headers, stream=True)
+  except Exception as e:
+      print(e)
+  raw = response.raw
+  with open(local_filename, 'wb') as out_file:
+    cnt = 1
+    while True:
+        chunk = raw.read(1024, decode_content=True)
+        if not chunk:
+            break
+        bb.logit(f'chunk-{cnt}')
+        out_file.write(chunk)
+        cnt += 1
+  '''
+  with requests.get(url, auth=HTTPDigestAuth(api_pair[0], api_pair[1]), headers=headers, stream=True) as r:
+
+    r.raise_for_status()
+    with open(local_filename, 'wb') as f:
+        for chunk in r.iter_content(chunk_size=8192):
+            # If you have chunk encoded response uncomment if
+            # and set chunk_size parameter to None.
+            #if chunk:
+            f.write(chunk)
+  '''
+  if "verbose" in details:
+      bb.logit(f"URL: {url}")
+  return(local_filename)
+
 def rest_post(url, details = {}):
   headers = {"Content-Type" : "application/json", "Accept" : "application/json"}
+  if "headers" in details:
+      headers = details["headers"]
   api_pair = bb.desecret(api_key).split(":")
   post_data = details["data"]
   response = requests.post(url, auth=HTTPDigestAuth(api_pair[0], api_pair[1]), data=json.dumps(post_data), headers=headers)
@@ -494,6 +623,8 @@ if __name__ == "__main__":
         atlas_users()
     elif ARGS["action"] == "database_users":
         atlas_database_users()
+    elif ARGS["action"] == "db_user_audit":
+        atlas_db_user_audit()
     elif ARGS["action"] == "user_audit":
         atlas_user_audit()
     elif ARGS["action"] == "cluster_info":
@@ -511,6 +642,8 @@ if __name__ == "__main__":
     elif ARGS["action"] == "search_indexes":
         # cluster, database, collection
         atlas_search_indexes()
+    elif ARGS["action"] == "logs":
+        atlas_log_files()
     elif ARGS["action"] == "test":
         template_test()
     elif ARGS["action"] == "encrypt":
