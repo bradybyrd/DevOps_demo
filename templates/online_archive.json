@@ -1,0 +1,19 @@
+{
+  "dbName": "directory_svc",
+  "collName": "activities",
+  "partitionFields": [
+      {
+              "fieldName": "ContentType",
+              "order": 0
+      },
+      {
+              "fieldName": "Title",
+              "order": 1
+    }],
+  "criteria": {
+      "type": "DATE",
+      "dateField": "ArchiveDate",
+      "dateFormat": "ISODATE",
+      "expireAfterDays": 90
+  }
+}

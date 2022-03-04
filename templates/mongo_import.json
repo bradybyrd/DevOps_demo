@@ -1,0 +1,7 @@
+{
+  "instructions" : "## Replace the template text in this file with the spcifics for your job",
+  "import_file" : "/Users/bradford.byrd/Documents/data/movies.json",
+  "target_database" : "moviedb",
+  "target_collection" : "movies",
+  "command_switches" : "-f -r"
+}

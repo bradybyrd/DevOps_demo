@@ -29,7 +29,7 @@ from pymongo import MongoClient
   Call v1 rest api for Atlas
 #
 '''
-settings_file = "rest_secret_settings.json"
+settings_file = "rest_settings.json"
 
 def atlas_org_info(details = {}):
     url = base_url
