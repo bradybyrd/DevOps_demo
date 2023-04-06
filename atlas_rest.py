@@ -29,7 +29,7 @@ from pymongo import MongoClient
   Call v1 rest api for Atlas
 #
 '''
-settings_file = "rest_settings.json"
+settings_file = "rest_secret_settings.json"
 
 def atlas_org_info(details = {}):
     url = base_url
@@ -306,7 +306,10 @@ def atlas_department_accounting(details = {}):
             cur = line["clusterName"]
         dept = departments[cur] if cur in departments else dept
         billing["lineItems"][ipos]["department"] = dept
-        billing["lineItems"][ipos]["project"] = project_names[line["groupId"]]
+        proj = "unknown/deleted"
+        if line["groupId"] in project_names:
+            proj = project_names[line["groupId"]]
+        billing["lineItems"][ipos]["project"] = proj
         billing["version"] = "1.0"
         ipos += 1
         #bb.logit(f'Item: {ipos} - {line["sku"]}')
@@ -427,6 +430,34 @@ def atlas_search_indexes():
     bb.message_box("Atlas Search Index Info", "title")
     pprint.pprint(result)
 
+def atlas_search_index_detail():
+    #	GET /groups/{GROUP-ID}/clusters/{CLUSTER-NAME}/fts/indexes/{INDEX-ID}
+    cluster = ARGS["cluster"]
+    index_id = ARGS["id"]
+    url = f'{base_url}/groups/{settings["project_id"]}/clusters/{cluster}/fts/indexes/{index_id}'
+    result = rest_get(url, {"verbose" : True})
+    bb.message_box("Atlas Search Index Info", "title")
+    pprint.pprint(result)
+
+def atlas_search_hw_metrics():
+    #	/groups/{GROUP-ID}/hosts/{PROCESS-ID}/fts/metrics
+    process_id = ARGS["process"]
+    url = f'{base_url}/groups/{settings["project_id"]}/hosts/{process_id}/fts/metrics/measurements?granularity=PT1M&period=PT1M'
+    result = rest_get(url, {"verbose" : True})
+    bb.message_box("Atlas Search Index Info", "title")
+    pprint.pprint(result)
+
+def atlas_search_metrics():
+    #	GET /groups/{GROUP-ID}/hosts/{PROCESS-ID}/fts/metrics/indexes/{DATABASE-NAME}/{COLLECTION-NAME}/measurements
+    process_id = ARGS["process"]
+    database = ARGS["database"]
+    collection = ARGS["collection"]
+    url = f'{base_url}/groups/{settings["project_id"]}/hosts/{process_id}/fts/metrics/indexes/{database}/{collection}/measurements?granularity=PT1M&period=PT1M'
+    result = rest_get(url, {"verbose" : True})
+    bb.message_box("Atlas Search Index Info", "title")
+    pprint.pprint(result)
+
+
 def atlas_log_files(details = {"verbose" : True}):
     '''
     Get log files every xx minutes and push to mongo
@@ -513,7 +544,7 @@ def rest_get_file(url, details = {}):
     with open(local_filename, 'wb') as f:
         for chunk in r.iter_content(chunk_size=8192):
             # If you have chunk encoded response uncomment if
-            # and set chunk_size parameter to None.
+            # and set cperfhunk_size parameter to None.
             #if chunk:
             f.write(chunk)
   '''
@@ -607,10 +638,10 @@ def client_connection(type = "uri", details = {}):
 if __name__ == "__main__":
     bb = Util()
     ARGS = bb.process_args(sys.argv)
-    settings = bb.read_json(settings_file)
+    base_path = os.path.dirname(os.path.abspath(__file__))
+    settings = bb.read_json(os.path.join(base_path, settings_file))
     api_key = settings["api_key"]
     bb.add_secret(bb.desecret(api_key))
-    base_path = os.path.dirname(os.path.abspath(__file__))
 
     base_url = settings["base_url"]
     if "action" not in ARGS:
@@ -657,6 +688,15 @@ if __name__ == "__main__":
     elif ARGS["action"] == "search_indexes":
         # cluster, database, collection
         atlas_search_indexes()
+    elif ARGS["action"] == "search_index":
+        # id
+        atlas_search_index_detail()
+    elif ARGS["action"] == "search_hw_metrics":
+        # process=820acde8445dc943b6d28e986798ee02
+        atlas_search_hw_metrics()
+    elif ARGS["action"] == "search_metrics":
+        # process=820acde8445dc943b6d28e986798ee02, database, collection
+        atlas_search_metrics()
     elif ARGS["action"] == "logs":
         atlas_log_files()
     elif ARGS["action"] == "test":
