@@ -391,6 +391,19 @@ def atlas_create_cluster():
     bb.message_box("Response")
     pprint.pprint(result)
 
+def atlas_create_cluster_new():
+    if "template" not in ARGS:
+        print("Send template=<template_name>")
+        sys.exit(1)
+    t_name = ARGS["template"]
+    if not ".json" in t_name:
+        t_name = f'{t_name}.json'
+    obj = bb.read_json(os.path.join(base_path, "templates", t_name))
+    url = base_url + f'/groups/{settings["project_id"]}/clusters?pretty=true'
+    #result = rest_post(url, {"data" : obj})
+    #bb.message_box("Response")
+    pprint.pprint(obj)
+
 def atlas_update_cluster(args = {}):
     if len(args.keys()) == 0:
         args = ARGS
@@ -516,6 +529,27 @@ def rest_get(url, details = {}):
       bb.logit(f"Response: {result}")
   return(json.loads(result))
 
+def rest_get_url():
+    url = ARGS["url"]
+    key = ARGS["key"]
+    secret = ARGS["secret"]
+    headers = {"Content-Type" : "application/json", "Accept" : "application/json" }
+    response = requests.get(url, auth=HTTPDigestAuth(key, secret), headers=headers)
+    result = response.content.decode('ascii')
+    bb.logit(f"Status: {response.status_code}")
+    bb.logit(f"Headers: {response.headers}")
+    bb.logit(f"URL: {url}")
+    bb.logit(f"Response: {result}")
+    return(json.loads(result))
+   
+def rest_get_ip():
+  url="http://api.ipify.org"
+  response = requests.get(url)
+  result = response.content.decode('ascii')
+  bb.logit(f"URL: {url}")
+  bb.logit(f"Response: {result}")
+  pprint.pprint(result)
+
 def rest_get_file(url, details = {}):
   # https://stackoverflow.com/questions/36292437/requests-gzip-http-download-and-write-to-disk
   headers = {"Content-Type" : "application/json", "Accept" : "application/json" }
@@ -584,6 +618,11 @@ def rest_update(url, details = {}):
 def test_shell():
   cmd = ["which", "curl"]
   result = bb.run_shell(cmd)
+
+def test_driver():
+    conn = client_connection("turi")
+    db = conn["test"]
+    db.test.insert_one({"name" : "testitem"})
 
 def template_test():
     # Open a template into a json object and modify it
@@ -676,7 +715,7 @@ if __name__ == "__main__":
     elif ARGS["action"] == "cluster_info":
         atlas_cluster_info()
     elif ARGS["action"] == "create_cluster":
-        atlas_create_cluster()
+        atlas_create_cluster_new()
     elif ARGS["action"] == "update_cluster":
         atlas_update_cluster()
     elif ARGS["action"] == "resume":
@@ -707,6 +746,10 @@ if __name__ == "__main__":
     elif ARGS["action"] == "decrypt":
         res = bb.desecret(ARGS["secret"])
         bb.logit(f'Decrypted: {res}',"SECRET")
+    elif ARGS["action"] == "get_ip":
+        rest_get_ip()
+    elif ARGS["action"] == "test_driver":
+        test_driver()
     else:
         print(f'{ARGS["action"]} not found')
 
