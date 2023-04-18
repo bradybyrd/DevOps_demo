@@ -41,6 +41,13 @@ stage("Environment Check") {
   }
 }
 
+stage("Key Creation") {
+  node (dbmNode) {
+    echo "Calling GCP keyfile creation"
+    echo "Expecting keypath and service account key returned"
+  }
+}
+
 stage("Deploy") {
 	//input message: "Deploy to ${environment}?", submitter: approver
 	node (dbmNode) {
@@ -53,6 +60,15 @@ stage("Deploy") {
   }  
 } 
 
+stage("Create Private Endpoint") {
+  node (dbmNode) {
+    echo "create stub PSC"
+    echo "get script"
+    echo "call cloud automation to create endpoint"
+  }
+}
+
+// #-------------------------- UTILITIES --------------------------------#
 @NonCPS
 def ensure_dir(pth){
   folder = new File(pth)
