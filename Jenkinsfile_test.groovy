@@ -2,7 +2,7 @@ import groovy.json.*
 
 // proj Deployment Pipeline
 sep = "/"
-def base_path = ""
+def base_path = "/Users/brady.byrd/Documents/mongodb/dev/devops_atlas/DevOps_demo"
 
 rootJobName = "$env.JOB_NAME";
 template = "$env.Template";
@@ -48,6 +48,7 @@ stage("Deploy") {
       //  Use shell script to call python
       sh """
         echo Running python command
+        cd ${base_path}
         python3 atlas_rest.py action=create_cluster template=${template}"""
   }  
 } 
