@@ -16,7 +16,7 @@ def buildNumber = "$env.BUILD_NUMBER"
 // Add a properties for Platform and Skip_Packaging
 properties([
 	parameters([
-		string(name: 'Template', description: "template file in the Templates directory", default: 'm30_standard')
+		string(name: 'Template', description: "template file in the Templates directory", defaultValue: 'm30_standard')
 	])
 ])
 /*
