@@ -36,17 +36,21 @@ parameters{
 stage("Environment Check") {
   //node (dbmNode) {
     //Copy from source to version folder
-  sh("env")
+  steps{
+    sh "env"
+  }
 }
 
 stage("Deploy") {
 	//input message: "Deploy to ${environment}?", submitter: approver
 	//node (dbmNode) {
-		//  Use shell script to call python
-		echo '#------------------- Performing Deploy on ${template} --------------#'
-		sh """
-      echo Running python command
-      python3 atlas_rest.py action=create_cluster template=${template}"""
+    steps{
+      //  Use shell script to call python
+      echo '#------------------- Performing Deploy on ${template} --------------#'
+      sh """
+        echo Running python command
+        python3 atlas_rest.py action=create_cluster template=${template}"""
+    }
 	//}   
 } 
 
