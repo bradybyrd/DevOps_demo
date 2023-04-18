@@ -9,6 +9,7 @@ template = "$env.Template";
 branchName = "master"
 branchVersion = ""
 def base_env = "Dev"
+def dbmnode = "none"
 def base_schema = ""
 def version = "3.11.2.1"
 def buildNumber = "$env.BUILD_NUMBER"
@@ -34,11 +35,11 @@ parameters{
 */
 
 stage("Environment Check") {
-  //node (dbmNode) {
+  node (dbmNode) {
     //Copy from source to version folder
   //steps {
     sh "env"
-  //}
+  }
 }
 
 stage("Deploy") {
