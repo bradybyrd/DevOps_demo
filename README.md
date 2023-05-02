@@ -148,5 +148,18 @@ elif ARGS["action"] == "logs":
 /usr/local/opt/openjdk@11/bin/java -Dmail.smtp.starttls.enable=true -jar /usr/local/opt/jenkins-lts/libexec/jenkins.war --httpListenAddress=127.0.0.1 --httpPort=4005
 
 http://localhost:4005
+bbadmin
 
-bbadmin/bugsyBoo
+#-------------------------------------------------#
+#  PrivateEndpoint creation
+#  5/1/23
+
+Tst: 
+subscriptions/22cf268b-6d60-4014-b553-7ef12e3f67a6
+BB-DEVOps_group
+BradyDevOps
+default - 10.0.0.0/24
+AZURE
+US_EAST_2
+
+/subscriptions/52f0a73e-87fd-4b87-bc73-b76cbda361ee/resourceGroups/rg_64503bf4f695331ad04754fa_epc7hkvk/providers/Microsoft.Network/privateLinkServices/pls_64503bf4f695331ad04754f9

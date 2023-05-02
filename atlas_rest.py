@@ -206,6 +206,24 @@ def atlas_private_endpoints(details = {}):
         pprint.pprint(result)
     return result
 
+def atlas_private_endpoint_svc(details = {}):
+    # https://cloud.mongodb.com/api/atlas/v1.0/groups/{groupId}/privateEndpoint/{cloudProvider}/endpointService/{endpointServiceId}
+    provider = "AWS"
+    if "provider" in details:
+        provider = details["provider"]
+    if "endpoint_svc_id" in details:
+        svc_id = details["endpoint_svc_id"]
+    if "provider" in ARGS:
+        provider = ARGS["provider"]
+    if "svc_id" in ARGS:
+        svc_id = ARGS["svc_id"]
+    url = base_url + f'/groups/{settings["project_id"]}/privateEndpoint/{provider}/endpointService/{svc_id}'
+    result = rest_get(url, details)
+    if not "quiet" in details:
+        bb.message_box(f"Atlas PrivateLink Info - {svc_id}", "title")
+        pprint.pprint(result)
+    return result
+
 def atlas_private_endpoint_detail(details = {}):
     if "endpoint" in ARGS:
         endpoint = ARGS["endpoint"]
@@ -226,6 +244,108 @@ def atlas_private_endpoint_detail(details = {}):
         bb.message_box("Atlas PrivateLinks", "title")
         pprint.pprint(result)
     return result
+
+def atlas_create_private_endpoint_svc(details = {}):
+    # https://cloud.mongodb.com/api/atlas/v1.0/groups/{groupId}/privateEndpoint/endpointService
+    provider = "AWS"
+    region = "US_EAST_1"
+    if "provider" in ARGS:
+        provider = ARGS["provider"]
+    if "region" in ARGS:
+        region = ARGS["region"]
+    url = base_url + f'/groups/{settings["project_id"]}/privateEndpoint/endpointService'
+    payload = {"providerName" : provider, "region" : region}
+    result = rest_post(url, {"data" : payload})
+    if not "quiet" in details:
+        bb.message_box("Atlas PrivateLinks", "title")
+        pprint.pprint(result)
+    for i in range(5):
+        bb.logit("Waiting for endpoint creation...")
+        time.sleep(30)
+        result2 = atlas_private_endpoint_svc({"provider" : provider, "endpoint_svc_id" : result["id"]})
+        if result2["status"] == "AVAILABLE":
+            break
+    if not "quiet" in details:
+        bb.message_box("Atlas PrivateLink Details", "title")
+        pprint.pprint(result2)
+    if provider == "AZURE":
+        payload = result2
+        # TODO - get the extras vnet etc into payload
+        #azure_create_private_endpoint(payload)
+    
+    
+def atlas_create_private_endpoint(details = {}):    
+    # https://cloud.mongodb.com/api/atlas/v1.0/groups/{groupId}/privateEndpoint/{cloudProvider}/endpointService/{endpointServiceId}/endpoint
+    if "vpc_id" in ARGS:
+        vpc_id = ARGS["vpce_id"]
+    else:
+        sys.exit(1)
+    if provider == "AZURE" and "cidr" in ARGS:
+        cidr = ARGS["cidr"]
+    else:
+        bb.logit("For azure - add cidr=<IPAddress>")
+        sys.exit(1)
+    url = base_url + f'/groups/{settings["project_id"]}/privateEndpoint/{provider}/endpointService/{service_id}/endpoint'
+    bb.logit(f"ServiceURL: {url}")
+    payload = {"id" : vpc_id}
+    if provider == "AZURE":
+        payload["privateEndpointIPAddress"] = cidr
+    result = rest_post(url, {"data" : payload})
+    if not "quiet" in details:
+        bb.message_box("Atlas PrivateLinks", "title")
+        pprint.pprint(result)
+    return result
+
+def azure_create_private_endpoint(details = {}):
+    # Use azure CLI to create PE
+    '''
+    python3 atlas_rest.py action azure_cli_command service_id=64505410cdbca3236596c2cd resource_name=BB-DEVOps_group vnet_name=BradyDevOps subnet=default
+    resource_name
+    vnet_name
+    subnet_name
+    Result from rest call:
+    {'errorMessage': None,
+    'id': '64505410cdbca3236596c2cd',
+    'privateEndpoints': [],
+    'privateLinkServiceName': 'pls_64505410cdbca3236596c2cd',
+    'privateLinkServiceResourceId': '/subscriptions/52f0a73e-87fd-4b87-bc73-b76cbda361ee/resourceGroups/rg_64503bf4f695331ad04754fa_4atbmuhb/providers/Microsoft.Network/privateLinkServices/pls_64505410cdbca3236596c2cd',
+    'regionName': 'US_EAST_2',
+    'status': 'AVAILABLE'}
+    az network vnet subnet update --resource-group resource-group-name --vnet-name vnet-name --name subnet-xxxx1 --disable-private-endpoint-network-policies true
+    endpoint_name
+
+    az network private-endpoint create --resource-group resource-group-name --name endpoint-name --vnet-name vnet-name --subnet subnet-xxxx1 --private-connection-resource-id /subscriptions/52f0a73e-87fd-4b87-bc73-b76cbda361ee/resourceGroups/rg_64503bf4f695331ad04754fa_epc7hkvk/providers/Microsoft.Network/privateLinkServices/pls_64503bf4f695331ad04754f9 --connection-name pls_64503bf4f695331ad04754f9 --manual-request true
+    '''
+    provider = "AZURE"
+    if "service_id" in ARGS:
+        service_id = ARGS["service_id"]
+        resource_name = ARGS["resource_name"]
+        vnet_name = ARGS["vnet_name"]
+        subnet = ARGS["subnet"]    
+        do_fetch = True
+    else:
+        if "privateLinkServiceName" in details:
+            svc_id = details["privateLinkServiceName"]
+            resource_id = details["privateLinkServiceResourceId"]
+            resource_name = details["resource_name"]
+            vnet_name = details["vnet_name"]
+            subnet = details["subnet"]
+            do_fetch = False
+        else:
+            bb.logit("Pass results from private_link_svc call")
+            sys.exit(1)
+    if do_fetch:
+        details = atlas_private_endpoint_svc({"provider" : provider, "endpoint_svc_id" : service_id})
+        svc_id = details["privateLinkServiceName"]
+        resource_id = details["privateLinkServiceResourceId"]
+    endpoint_name = f"azure_pl_{subnet}"
+                    
+    disabler = f"az network vnet subnet update --resource-group {resource_name} --vnet-name {vnet_name} --name {subnet} --disable-private-endpoint-network-policies true"
+    template = f"az network private-endpoint create --resource-group {resource_name} --name {endpoint_name} --vnet-name {vnet_name} --subnet {subnet} --private-connection-resource-id {resource_id} --connection-name {svc_id} --manual-request true"
+    bb.logit("# ----------------------- Azure CLI Commands -------------------------- #")
+    print(disabler)
+    print(" -------------------------- ")
+    print(template)
 
 def atlas_project_alerts(details = {}):
     url = base_url + f'/groups/{settings["project_id"]}/alertConfigs?pretty=true'
@@ -694,8 +814,16 @@ if __name__ == "__main__":
         atlas_project_alerts()
     elif ARGS["action"] == "private_links":
         atlas_private_endpoints()
+    elif ARGS["action"] == "private_link_svc_detail":
+        atlas_private_endpoint_svc()
     elif ARGS["action"] == "private_link":
         atlas_private_endpoint_detail()
+    elif ARGS["action"] == "create_private_link_svc":
+        atlas_create_private_endpoint_svc()
+    elif ARGS["action"] == "create_private_link":
+        atlas_create_private_endpoint()
+    elif ARGS["action"] == "azure_cli_command":
+        azure_create_private_endpoint()
     elif ARGS["action"] == "billing":
         atlas_billing()
     elif ARGS["action"] == "billing_invoice":
