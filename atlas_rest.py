@@ -346,6 +346,7 @@ def azure_create_private_endpoint(details = {}):
     print(disabler)
     print(" -------------------------- ")
     print(template)
+    return({"disabler" : disabler, "endpoint" : template})
 
 def atlas_project_alerts(details = {}):
     url = base_url + f'/groups/{settings["project_id"]}/alertConfigs?pretty=true'
