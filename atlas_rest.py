@@ -29,7 +29,6 @@ from pymongo import MongoClient
   Call v1 rest api for Atlas
 #
 '''
-settings_file = "rest_secret_settings.json"
 
 def atlas_org_info(details = {}):
     url = base_url
@@ -46,6 +45,17 @@ def atlas_project_info(details = {}):
         bb.message_box("Atlas Projects", "title")
         pprint.pprint(result)
     return result["results"]
+
+def atlas_project_detail(details = {}):
+    project_id = settings["project_id"]
+    if "project_id" in ARGS:
+        project_id = ARGS["project_id"]
+    url = f'{base_url}/groups/{project_id}'
+    result = rest_get(url, details) #, {"verbose" : True})
+    if not "quiet" in details:
+        bb.message_box("Atlas Projects", "title")
+        pprint.pprint(result)
+    return result
 
 def atlas_cluster_info(details = {}):
     result = {"nothing to show here": True}
@@ -348,6 +358,36 @@ def azure_create_private_endpoint(details = {}):
     print(template)
     return({"disabler" : disabler, "endpoint" : template})
 
+def gcp_create_private_endpoint(details = {}):
+    test = "true"
+
+def gcp_create_kms_encryption(details = {}):
+    # https://cloud.mongodb.com/api/atlas/v1.0/groups/{groupId}/encryptionAtRest
+    key_resource_id = os.environ.get("Key_Resource_Id")
+    service_account_key = settings["gcp_service_account_key"]
+    payload = {"googleCloudKms" : {
+        "enabled": True,
+        "keyVersionResourceID": key_resource_id,
+        "serviceAccountKey": service_account_key
+    }}
+    url = base_url + f'/groups/{settings["project_id"]}/encryptionAtRest'
+    result = rest_update(url, {"data" : payload})
+    if not "quiet" in details:
+        bb.message_box("Atlas GCP-KMS Encryption Info", "title")
+        print(payload)
+        print("----------------------------------------------------")
+        pprint.pprint(result)
+    return result
+
+def atlas_kms_encryption(details = {}):
+    # https://cloud.mongodb.com/api/atlas/v1.0/groups/{groupId}/encryptionAtRest
+    url = base_url + f'/groups/{settings["project_id"]}/encryptionAtRest'
+    result = rest_get(url, details)
+    if not "quiet" in details:
+        bb.message_box("Atlas KMS Encryption Info", "title")
+        pprint.pprint(result)
+    return result
+
 def atlas_project_alerts(details = {}):
     url = base_url + f'/groups/{settings["project_id"]}/alertConfigs?pretty=true'
     result = rest_get(url, details)
@@ -636,6 +676,22 @@ def get_log_file(cluster, start, end, log_path, details = {}):
         pprint.pprint(result)
     return result #result["results"]
 
+def atlas_online_archive():
+    # POST /groups/{GROUP-ID}/clusters/{CLUSTER-NAME}/onlineArchives
+    if "json" not in ARGS:
+        print("Send json=<file_path>")
+        sys.exit(1)
+    tname = ARGS["json"]
+    tinfo = bb.read_json(tname)
+    url = base_url + f'/groups/{settings["project_id"]}/clusters/{settings["cluster_name"]}/onlineArchives'
+    result = rest_post(url, {"data" : tinfo})
+    bb.message_box("Response")
+    pprint.pprint(result)
+
+# ------------------------------------------------------------ #
+#    UTILITY
+# ------------------------------------------------------------ #
+
 def rest_get(url, details = {}):
   headers = {"Content-Type" : "application/json", "Accept" : "application/json" }
   if "headers" in details:
@@ -757,19 +813,6 @@ def template_test():
     print("Parent")
     pprint.pprint(settings["templates"]["test"])
 
-def atlas_online_archive():
-    # POST /groups/{GROUP-ID}/clusters/{CLUSTER-NAME}/onlineArchives
-    if "json" not in ARGS:
-        print("Send json=<file_path>")
-        sys.exit(1)
-    tname = ARGS["json"]
-    tinfo = bb.read_json(tname)
-    url = base_url + f'/groups/{settings["project_id"]}/clusters/{settings["cluster_name"]}/onlineArchives'
-    result = rest_post(url, {"data" : tinfo})
-    bb.message_box("Response")
-    pprint.pprint(result)
-
-
 def json_template(temp_type):
     if not temp_type.endsWith(".json"):
         temp_type = temp_type + ".json"
@@ -796,6 +839,7 @@ def client_connection(type = "uri", details = {}):
 #     MAIN
 #------------------------------------------------------------------#
 if __name__ == "__main__":
+    settings_file = "rest_secret_settings.json"
     bb = Util()
     ARGS = bb.process_args(sys.argv)
     base_path = os.path.dirname(os.path.abspath(__file__))
@@ -811,6 +855,8 @@ if __name__ == "__main__":
         atlas_org_info()
     elif ARGS["action"] == "org_projects":
         atlas_project_info()
+    elif ARGS["action"] == "project_detail":
+        atlas_project_detail()
     elif ARGS["action"] == "alert_settings":
         atlas_project_alerts()
     elif ARGS["action"] == "private_links":
@@ -825,6 +871,12 @@ if __name__ == "__main__":
         atlas_create_private_endpoint()
     elif ARGS["action"] == "azure_cli_command":
         azure_create_private_endpoint()
+    elif ARGS["action"] == "gcp_cli_command":
+        gcp_create_private_endpoint()
+    elif ARGS["action"] == "create_kms_encryption":
+        gcp_create_kms_encryption()
+    elif ARGS["action"] == "kms_encryption":
+        atlas_kms_encryption()
     elif ARGS["action"] == "billing":
         atlas_billing()
     elif ARGS["action"] == "billing_invoice":

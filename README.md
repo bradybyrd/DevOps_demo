@@ -141,7 +141,7 @@ elif ARGS["action"] == "logs":
 }}]
 
 
-#-------------------------------------------------#
+# ------------------------------------------------- #
 #  Jenkins Install
 #  3/4/22
 
@@ -150,7 +150,7 @@ elif ARGS["action"] == "logs":
 http://localhost:4005
 bbadmin
 
-#-------------------------------------------------#
+# ------------------------------------------------- #
 #  PrivateEndpoint creation
 #  5/1/23
 
@@ -163,3 +163,8 @@ AZURE
 US_EAST_2
 
 /subscriptions/52f0a73e-87fd-4b87-bc73-b76cbda361ee/resourceGroups/rg_64503bf4f695331ad04754fa_epc7hkvk/providers/Microsoft.Network/privateLinkServices/pls_64503bf4f695331ad04754f9
+
+# ------------------------------------------------------ #
+#  KMS Encryption Test
+bb-hsm-key
+resourceID: projects/bradybyrd-poc/locations/us-central1/keyRings/bb-ringworld/cryptoKeys/bb-hsm-key/cryptoKeyVersions/1
