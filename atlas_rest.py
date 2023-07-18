@@ -286,6 +286,9 @@ def atlas_create_private_endpoint_svc(details = {}):
     
 def atlas_create_private_endpoint(details = {}):    
     # https://cloud.mongodb.com/api/atlas/v1.0/groups/{groupId}/privateEndpoint/{cloudProvider}/endpointService/{endpointServiceId}/endpoint
+    project_id = settings["project_id"]
+    if "project_id" in details:
+        project_id = details["project_id"]
     if "vpc_id" in ARGS:
         vpc_id = ARGS["vpce_id"]
     else:
@@ -295,7 +298,7 @@ def atlas_create_private_endpoint(details = {}):
     else:
         bb.logit("For azure - add cidr=<IPAddress>")
         sys.exit(1)
-    url = base_url + f'/groups/{settings["project_id"]}/privateEndpoint/{provider}/endpointService/{service_id}/endpoint'
+    url = base_url + f'/groups/{project_id}/privateEndpoint/{provider}/endpointService/{service_id}/endpoint'
     bb.logit(f"ServiceURL: {url}")
     payload = {"id" : vpc_id}
     if provider == "AZURE":
@@ -305,6 +308,10 @@ def atlas_create_private_endpoint(details = {}):
         bb.message_box("Atlas PrivateLinks", "title")
         pprint.pprint(result)
     return result
+
+def atlas_get_project_id():
+    # go through all the possible ways it coud be defined
+    boo = "boo"
 
 def azure_create_private_endpoint(details = {}):
     # Use azure CLI to create PE
@@ -364,7 +371,9 @@ def gcp_create_private_endpoint(details = {}):
 def gcp_create_kms_encryption(details = {}):
     # https://cloud.mongodb.com/api/atlas/v1.0/groups/{groupId}/encryptionAtRest
     key_resource_id = os.environ.get("Key_Resource_Id")
-    service_account_key = settings["gcp_service_account_key"]
+    #service_account_key = settings["gcp_service_account_key"]
+    with open(ARGS["Secret_File"]) as secretfile:
+        service_account_key = secretfile.read()
     payload = {"googleCloudKms" : {
         "enabled": True,
         "keyVersionResourceID": key_resource_id,
@@ -691,20 +700,26 @@ def atlas_online_archive():
 # ------------------------------------------------------------ #
 #    UTILITY
 # ------------------------------------------------------------ #
+def get_api_key(details = {}):
+    if "org" in details:
+        result = settings["organizations"][org]["api_key"]
+    else:
+        result = api_key
+    return result
 
 def rest_get(url, details = {}):
-  headers = {"Content-Type" : "application/json", "Accept" : "application/json" }
-  if "headers" in details:
-      headers = details["headers"]
-  api_pair = bb.desecret(api_key).split(":")
-  response = requests.get(url, auth=HTTPDigestAuth(api_pair[0], api_pair[1]), headers=headers)
-  result = response.content.decode('ascii')
-  if "verbose" in details:
-      bb.logit(f"Status: {response.status_code}")
-      bb.logit(f"Headers: {response.headers}")
-      bb.logit(f"URL: {url}")
-      bb.logit(f"Response: {result}")
-  return(json.loads(result))
+    headers = {"Content-Type" : "application/json", "Accept" : "application/json" }
+    if "headers" in details:
+        headers = details["headers"]
+    api_pair = bb.desecret(get_api_key(details)).split(":")
+    response = requests.get(url, auth=HTTPDigestAuth(api_pair[0], api_pair[1]), headers=headers)
+    result = response.content.decode('ascii')
+    if "verbose" in details:
+        bb.logit(f"Status: {response.status_code}")
+        bb.logit(f"Headers: {response.headers}")
+        bb.logit(f"URL: {url}")
+        bb.logit(f"Response: {result}")
+    return(json.loads(result))
 
 def rest_get_url():
     url = ARGS["url"]
@@ -732,7 +747,7 @@ def rest_get_file(url, details = {}):
   headers = {"Content-Type" : "application/json", "Accept" : "application/json" }
   if "headers" in details:
       headers = details["headers"]
-  api_pair = bb.desecret(api_key).split(":")
+  api_pair = bb.desecret(get_api_key(details)).split(":")
   local_filename = details["filename"]
   try:
       response = requests.get(url, auth=HTTPDigestAuth(api_pair[0], api_pair[1]), headers=headers, stream=True)
@@ -767,7 +782,7 @@ def rest_post(url, details = {}):
   headers = {"Content-Type" : "application/json", "Accept" : "application/json"}
   if "headers" in details:
       headers = details["headers"]
-  api_pair = bb.desecret(api_key).split(":")
+  api_pair = bb.desecret(get_api_key(details)).split(":")
   post_data = details["data"]
   response = requests.post(url, auth=HTTPDigestAuth(api_pair[0], api_pair[1]), data=json.dumps(post_data), headers=headers)
   result = response.json() #content.decode('ascii')
@@ -779,7 +794,7 @@ def rest_post(url, details = {}):
 
 def rest_update(url, details = {}):
   headers = {"Content-Type" : "application/json", "Accept" : "application/json"}
-  api_pair = bb.desecret(api_key).split(":")
+  api_pair = bb.desecret(get_api_key(details)).split(":")
   post_data = details["data"]
   if isinstance(post_data, str):
       post_data = json.loads(post_data)
@@ -820,6 +835,17 @@ def json_template(temp_type):
     result = bb.read_json(ppath)
     return(copy.deepcopy(result))
 
+def temp_settings(action="get", data={})
+    fpath = os.path.join(base_path, temp_settings_file)
+    if action == "get":
+        tempsettings = bb.read_json(os.path.join(base_path, temp_settings_file))
+        result = tempsettings
+    elif action == "set":
+        with open(json_file, 'w') as outfile:
+                json.dump(data, fpath)
+        result = {"result" : "saved"}
+    return result
+
 def client_connection(type = "uri", details = {}):
     mdb_conn = settings[type]
     username = settings["username"]
@@ -844,6 +870,7 @@ if __name__ == "__main__":
     ARGS = bb.process_args(sys.argv)
     base_path = os.path.dirname(os.path.abspath(__file__))
     settings = bb.read_json(os.path.join(base_path, settings_file))
+    temp_settings_file = "temp_settings.json"
     api_key = settings["api_key"]
     bb.add_secret(bb.desecret(api_key))
 

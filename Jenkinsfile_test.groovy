@@ -13,6 +13,8 @@ def dbmNode = ""
 def base_schema = ""
 def version = "3.11.2.1"
 def buildNumber = "$env.BUILD_NUMBER"
+def PASSING_VAR = "elephants"
+def OTHER_VAR
 
 // Add a properties for Platform and Skip_Packaging
 properties([
@@ -38,6 +40,13 @@ stage("Environment Check") {
   node (dbmNode) {
     //Copy from source to version folder
     sh "env"
+    steps {
+      echo "Showing value of ${PASSING_VAR}"
+      script {
+        PASSING_VAR = "Hippos" 
+      }
+      echo "Showing new value of ${PASSING_VAR}" 
+    }
   }
 }
 
@@ -56,8 +65,9 @@ stage("Deploy") {
       sh """
         echo Running python command
         cd ${base_path}
-        python3 atlas_rest.py action=create_cluster template=${template}"""
-  }  
+        #python3 atlas_rest.py action=create_cluster template=${template}"""
+    echo "Showing value of ${PASSING_VAR}"
+  } 
 } 
 
 stage("Create Private Endpoint") {
