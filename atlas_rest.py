@@ -309,10 +309,6 @@ def atlas_create_private_endpoint(details = {}):
         pprint.pprint(result)
     return result
 
-def atlas_get_project_id():
-    # go through all the possible ways it coud be defined
-    boo = "boo"
-
 def azure_create_private_endpoint(details = {}):
     # Use azure CLI to create PE
     '''
@@ -508,28 +504,73 @@ def updateClusterLabels():
             atlas_update_cluster({"project" : clus["groupId"], "name" : clus["name"], "data" : data})
 
 
-def atlas_user_add():
-    if "user" not in ARGS:
-        print("Send user=<user:password>")
-        sys.exit(1)
-    secret = ARGS["user"]
-    pair = secret.split(":")
+def atlas_user_add(details = {}):
     role = "read"
+    project_id = settings["project_id"]
+    if "Project_Name" in os.environ:
+        project_id = atlas_get_project_id()
     if "role" in ARGS:
         role = ARGS["role"]
-    obj = {
-      "databaseName" : "admin",
-      "roles" : [
-        {"databaseName" : "admin", "roleName" : role}
-      ],
-      "username" : pair[0],
-      "password" : pair[1]
-    }
-    url = base_url + f'/groups/{settings["project_id"]}/databaseUsers?pretty=true'
-    result = rest_post(url, {"data" : obj})
-    bb.message_box("Response")
-    pprint.pprint(result)
+    if "DB_User" in os.environ:
+        # user:pass|role,user:pass|role
+        secrets = os.environ["DB_User"].split(",")
+    elif "user" in ARGS:
+        secrets = [f'{ARGS["user"]}|{role}']    
+    else:
+        print("Send user=<user:password>")
+        sys.exit(1)
+    for secret in secrets:
+        pair = secret.split("|")
+        role = pair[1]
+        pair = pair[0].split(":")
+        obj = {
+            "databaseName" : "admin",
+            "roles" : [
+                {"databaseName" : "admin", "roleName" : role}
+            ],
+            "username" : pair[0],
+            "password" : pair[1]
+        }
+        url = base_url + f'/groups/{project_id}/databaseUsers?pretty=true'
+        result = rest_post(url, {"data" : obj})
+        bb.message_box("Response")
+        pprint.pprint(result)
 
+def get_project_id(details = {}):
+    if "Atlas_Project_Name" in os.environ:
+        project_name=os.environ.get("Atlas_Project_Name")
+        answer=atlas_project_info_name({"project_name" : project_name})
+        project_id=answer["id"]
+    else:
+        project_id = os.environ.get("Atlas_Project_Id")
+    
+    if "Atlas_Organization_Name" in os.environ:
+        org_id = os.environ.get("Atlas_Organization_Name")
+    else:
+        org_id=settings["org_id"]
+
+def atlas_project_info_name(details = {}):
+    name=details['project_name']
+    #url = f'{base_url}/groups/{name}'
+    url = f'{base_url}/groups/byName/{name}'
+    result = rest_get(url, details) #, {"verbose" : True})
+    if not "quiet" in details:
+        bb.message_box("Atlas Projects", "title")
+        pprint.pprint(result)
+    return result
+
+def atlas_project_check():
+    if "Atlas_Project_Name" in os.environ:
+        project_name=os.environ.get("Atlas_Project_Name")
+        #answer=atlas_project_info({"project_name" : project_name})
+        answer=atlas_project_info_name({"project_name" : project_name})
+        if "id" in answer:
+            p_status = answer["id"]
+        else:
+            p_status = "NEW"
+        with open (f"{os.environ.get('WORKSPACE')}/p_status.txt" , "w") as fil:
+            fil.write(p_status)
+    
 def atlas_create_cluster():
     if "template" not in ARGS:
         print("Send template=<template_name>")
@@ -835,16 +876,34 @@ def json_template(temp_type):
     result = bb.read_json(ppath)
     return(copy.deepcopy(result))
 
-def temp_settings(action="get", data={})
+def get_setting(setting, details = {}):
+    # Cascade through this
+    # details = {"env" : "Project_Name"}
+    result = "none"
+    if "env" in details:
+        result=os.environ.get(details["env"])
+    else:
+        if setting in temp_settings:
+            result = temp_settings[setting]
+        elif setting in settings:
+            result = settings[setting]
+    return result
+    
+def temp_settings(action="get", data={}):
     fpath = os.path.join(base_path, temp_settings_file)
     if action == "get":
-        tempsettings = bb.read_json(os.path.join(base_path, temp_settings_file))
-        result = tempsettings
+        tempsettings = read_temp_settings()
     elif action == "set":
+        tempsettings = read_temp_settings()
+        for item in data:
+            tempsettings[item] = data[item]
         with open(json_file, 'w') as outfile:
-                json.dump(data, fpath)
-        result = {"result" : "saved"}
-    return result
+                json.dump(tempsettings, fpath)
+    return tempsettings
+
+def read_temp_settings():
+    tempsettings = bb.read_json(os.path.join(base_path, temp_settings_file))
+    return tempsettings
 
 def client_connection(type = "uri", details = {}):
     mdb_conn = settings[type]

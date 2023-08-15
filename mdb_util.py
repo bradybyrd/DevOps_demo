@@ -89,13 +89,6 @@ class Util:
         else:
             result = json.loads(json_file)
         return result
-    
-    def save_json(self, json_file, data, is_path = True):
-        if is_path:
-            with open(json_file, 'w') as outfile:
-                json.dump(data, outfile)
-        else:
-            result =json.dump(data, outfile)
 
     def desecret(self,txt):
         #message_bytes = txt.replace(self.cypher,"")[::-1].encode('ascii')
