@@ -23,9 +23,9 @@ class Util:
         stamp = f"{cur_date}|{log_type}> "
         for line in message.splitlines():
             if log_type == "SECRET":
-                cleaned = line
-            else:
                 cleaned = self.sanitize(line)
+            else:
+                cleaned = line
             print(f"{stamp}{cleaned}")
 
     def message_box(self, msg, mtype = "sep"):
@@ -80,7 +80,13 @@ class Util:
             else:
                 args[arg] = ""
         return args
-
+    
+    def read_file(self,filepath):
+        result = ""
+        with open(filepaath, "r") as fil:
+            result = fil.read()
+        return result
+    
     def read_json(self, json_file, is_path = True):
         result = {}
         if is_path:

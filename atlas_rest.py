@@ -86,6 +86,34 @@ def atlas_cluster_info(details = {}):
         pprint.pprint(raw_result)
     return result
 
+def atlas_cluster_audit():
+    #  Loops through orgs and projects to get details on each cluster and push to atlas
+    orgs = settings["organizations"]
+    bulk_docs = []
+    icnt = 0
+    bb.message_box("Atlas Cluster Audit","title")
+    for org in orgs:
+        bb.message_box(f'Organization: {org}')
+        org_info = {"organization" : org, "id" : orgs[org]["org_id"], "api_key" : orgs[org]["api_key"]}
+        result = atlas_project_info(org_info)
+        if "name" not in result[0]:
+            bb.logit('Failed to get info for org - check API key access')
+            next
+        for proj in result:
+            bb.logit(f'Clusters: [{proj["clusterCount"]}]')
+            doc = {"organization" : org, "org_id" : org_info["id"], "project" : proj["name"], "project_id" : proj["id"]}
+            org_info["project_id"] = proj["id"]
+            clust_info = atlas_cluster_info(org_info)
+            clusters = []
+            for cluster in clust_info:
+                bb.logit(f'Cluster: {cluster["name"]} - {cluster["providerSettings"]["instanceSizeName"]}')
+                clusters.append(cluster)
+            doc["clusters"] = clusters
+            bulk_docs.append(doc)
+    bb.logit("# ------------- Complete ------------- #")
+    pprint.pprint(bulk_docs)
+        
+
 def atlas_users(details = {}):
     url = base_url + f'/orgs/{settings["org_id"]}/users?pretty=true'
     result = rest_get(url, details)
@@ -979,6 +1007,8 @@ if __name__ == "__main__":
         atlas_db_user_audit()
     elif ARGS["action"] == "user_audit":
         atlas_user_audit()
+    elif ARGS["action"] == "cluster_audit":
+        atlas_cluster_audit()
     elif ARGS["action"] == "cluster_info":
         atlas_cluster_info()
     elif ARGS["action"] == "create_cluster":
