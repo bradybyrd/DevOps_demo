@@ -16,9 +16,11 @@ import multiprocessing
 import pprint
 import getopt
 import copy
+import pymongo
 import bson
+import gcp_psc_create_template as gcptemp
 from bson.objectid import ObjectId
-from bb_util import Util
+from mdb_util import Util
 import requests
 from requests.auth import HTTPDigestAuth
 from pymongo import MongoClient
@@ -29,12 +31,23 @@ from pymongo import MongoClient
   Call v1 rest api for Atlas
 #
 '''
+settings_file = "rest_settings.json"
+temp_settings_file = "temp_settings.json"
+tempsettings={}
 
-def atlas_org_info(details = {}):
+def atlas_org_details(details = {}):
     url = base_url
     result = rest_get(url)
     if not "quiet" in details:
         bb.message_box("Atlas Org Info", "title")
+        pprint.pprint(result)
+    return result["results"]
+
+def atlas_org_info(details = {}):
+    url = f'{base_url}/orgs'
+    result = rest_get(url, details) #, {"verbose" : True})
+    if not "quiet" in details:
+        bb.message_box("Atlas Organizations", "title")
         pprint.pprint(result)
     return result["results"]
 
@@ -46,17 +59,31 @@ def atlas_project_info(details = {}):
         pprint.pprint(result)
     return result["results"]
 
-def atlas_project_detail(details = {}):
-    project_id = settings["project_id"]
-    if "project_id" in ARGS:
-        project_id = ARGS["project_id"]
-    url = f'{base_url}/groups/{project_id}'
+def atlas_project_info_name(details = {}):
+    name=details['project_name']
+    #url = f'{base_url}/groups/{name}'
+    url = f'{base_url}/groups/byName/{name}'
     result = rest_get(url, details) #, {"verbose" : True})
     if not "quiet" in details:
         bb.message_box("Atlas Projects", "title")
         pprint.pprint(result)
     return result
 
+def atlas_project_check():
+    if "Atlas_Project_Name" in os.environ:
+        project_name=os.environ.get("Atlas_Project_Name")
+        #answer=atlas_project_info({"project_name" : project_name})
+        answer=atlas_project_info_name({"project_name" : project_name})
+        if "id" in answer:
+            p_status = "EXISTS"
+            project_id=answer["id"]
+        else:
+            p_status = "NEW"
+            project_id= "None"
+        temp_settings("set" , {"p_status" : p_status , "project_id" : project_id})
+        # with open (f"{os.environ.get('WORKSPACE')}/p_status.txt" , "w") as fil:
+        #     fil.write(p_status)
+             
 def atlas_cluster_info(details = {}):
     result = {"nothing to show here": True}
     project_id = settings["project_id"]
@@ -88,13 +115,16 @@ def atlas_cluster_info(details = {}):
 
 def atlas_cluster_audit():
     #  Loops through orgs and projects to get details on each cluster and push to atlas
-    orgs = settings["organizations"]
+    orgs = settings["atlas_organization"]
     bulk_docs = []
+    csv_info = []
+    # csv_info.append(["Org", "Org_id", "Project Id", "Project Name", "Cluster Name", "Cluster Tier", "Date Created", "Cloud Provider", "Connection String"])
+    # csv_info.append(["Org", "Org_id", "Project Id", "Project Name", "Cluster Name", "Cluster Tier", "Date Created", "Cloud Provider", "Region", "Connection String"])
     icnt = 0
     bb.message_box("Atlas Cluster Audit","title")
     for org in orgs:
         bb.message_box(f'Organization: {org}')
-        org_info = {"organization" : org, "id" : orgs[org]["org_id"], "api_key" : orgs[org]["api_key"]}
+        org_info = {"org" : org, "id" : orgs[org]["org_id"], "api_key" : orgs[org]["api_key"]}
         result = atlas_project_info(org_info)
         if "name" not in result[0]:
             bb.logit('Failed to get info for org - check API key access')
@@ -106,14 +136,58 @@ def atlas_cluster_audit():
             clust_info = atlas_cluster_info(org_info)
             clusters = []
             for cluster in clust_info:
+                csv = []
+                csv.append (org_info["org"])
+                csv.append (org_info["id"])
+                csv.append (proj["id"])
+                csv.append (proj["name"])
+                csv.append (cluster["name"])
+                csv.append (cluster["providerSettings"]["instanceSizeName"])
+                csv.append (cluster["createDate"])
+                csv.append (cluster["providerSettings"]["providerName"])
+                if "regionName" in cluster["providerSettings"]:
+                    csv.append (cluster["providerSettings"]["regionName"])
+                else:
+                    csv.append (cluster["providerSettings"]["providerName"])
+                    # reg = ",".join(cluster["providerSettings"]["providerName"])
+                    # reg = ",".join(cluster["providerSettings"]["replicationSpec"].keys())
+                    # csv.append (reg)
+                csv.append (cluster["srvAddress"])
+                # csv.append (cluster["tags"])
+                csv_info.append (",".join(csv))
+                # pprint.pprint (cluster["providerSettings"])
                 bb.logit(f'Cluster: {cluster["name"]} - {cluster["providerSettings"]["instanceSizeName"]}')
                 clusters.append(cluster)
             doc["clusters"] = clusters
             bulk_docs.append(doc)
     bb.logit("# ------------- Complete ------------- #")
     #  Find the way here to push to ServiceNow
-    pprint.pprint(bulk_docs)
-        
+    # pprint.pprint(bulk_docs)
+    print ("---------------------------")
+    print ("\n".join(csv_info))
+   
+def rest_get_url():
+    url = ARGS["url"]
+    key = ARGS["key"]
+    secret = ARGS["secret"]
+    headers = {"Content-Type" : "application/json", "Accept" : "application/json" }
+    response = requests.get(url, auth=HTTPDigestAuth(key, secret), headers=headers)
+    result = response.content.decode('ascii')
+    bb.logit(f"Status: {response.status_code}")
+    bb.logit(f"Headers: {response.headers}")
+    bb.logit(f"URL: {url}")
+    bb.logit(f"Response: {result}")
+    return(json.loads(result))
+
+
+def rest_get_ip():
+
+    url="https://protect-us.mimecast.com/s/STFvCW6X8NfPL3nOPSKVMC2?domain=api.ipify.org"
+    response = requests.get(url,headers={"User-Agent": "Test-Agent"})
+    result = response.content.decode('ascii')
+    bb.logit(f"URL: {url}")
+    bb.logit(f"Response: {result}")
+    pprint.pprint(result)
 
 def atlas_users(details = {}):
     url = base_url + f'/orgs/{settings["org_id"]}/users?pretty=true'
@@ -238,7 +312,9 @@ def atlas_private_endpoints(details = {}):
     provider = "AWS"
     if "provider" in ARGS:
         provider = ARGS["provider"]
-    url = base_url + f'/groups/{settings["project_id"]}/privateEndpoint/{provider}/endpointService?pretty=true'
+    if "project_id" in ARGS:
+        project_id = ARGS["project_id"]
+    url = base_url + f'/groups/{project_id}/privateEndpoint/{provider}/endpointService?pretty=true'
     result = rest_get(url, details)
     if not "quiet" in details:
         bb.message_box("Atlas PrivateLinks", "title")
@@ -256,7 +332,9 @@ def atlas_private_endpoint_svc(details = {}):
         provider = ARGS["provider"]
     if "svc_id" in ARGS:
         svc_id = ARGS["svc_id"]
-    url = base_url + f'/groups/{settings["project_id"]}/privateEndpoint/{provider}/endpointService/{svc_id}'
+    if "project_id" in details:
+        project_id = details["project_id"]
+    url = base_url + f'/groups/{project_id}/privateEndpoint/{provider}/endpointService/{svc_id}'
     result = rest_get(url, details)
     if not "quiet" in details:
         bb.message_box(f"Atlas PrivateLink Info - {svc_id}", "title")
@@ -288,20 +366,30 @@ def atlas_create_private_endpoint_svc(details = {}):
     # https://cloud.mongodb.com/api/atlas/v1.0/groups/{groupId}/privateEndpoint/endpointService
     provider = "AWS"
     region = "US_EAST_1"
+    project_id = settings["project_id"]
     if "provider" in ARGS:
         provider = ARGS["provider"]
     if "region" in ARGS:
         region = ARGS["region"]
-    url = base_url + f'/groups/{settings["project_id"]}/privateEndpoint/endpointService'
+    if "provider" in details:
+        provider = details["provider"]
+    if "region" in details:
+        region = details["region"]
+    if "project_id" in details:
+        project_id = details["project_id"]
+    url = base_url + f'/groups/{project_id}/privateEndpoint/endpointService'
     payload = {"providerName" : provider, "region" : region}
     result = rest_post(url, {"data" : payload})
     if not "quiet" in details:
         bb.message_box("Atlas PrivateLinks", "title")
         pprint.pprint(result)
-    for i in range(5):
+    if "errorCode" in result:
+        return "PE/PSC EXISTS"
+    for i in range(100):
         bb.logit("Waiting for endpoint creation...")
         time.sleep(30)
-        result2 = atlas_private_endpoint_svc({"provider" : provider, "endpoint_svc_id" : result["id"]})
+        result2 = atlas_private_endpoint_svc({"provider" : provider, "endpoint_svc_id" : result["id"], "project_id" : project_id})
+        pprint.pprint(result2)
         if result2["status"] == "AVAILABLE":
             break
     if not "quiet" in details:
@@ -311,25 +399,48 @@ def atlas_create_private_endpoint_svc(details = {}):
         payload = result2
         # TODO - get the extras vnet etc into payload
         #azure_create_private_endpoint(payload)
+    temp_settings("set" , {"pe_svcid" : result["id"]})
+    bb.logit(f'endpointserviceid : {result["id"]}')
+    # with open (f"{os.environ.get('WORKSPACE')}/pe_svcid.txt" , "w") as fil:
+    #     fil.write(result["id"])
+    return result2
     
-    
-def atlas_create_private_endpoint(details = {}):    
+def azure_create_private_endpoint(details = {}):    
     # https://cloud.mongodb.com/api/atlas/v1.0/groups/{groupId}/privateEndpoint/{cloudProvider}/endpointService/{endpointServiceId}/endpoint
+    provider = "AZURE"
     project_id = settings["project_id"]
-    if "project_id" in details:
-        project_id = details["project_id"]
-    if "vpc_id" in ARGS:
-        vpc_id = ARGS["vpce_id"]
+    bb.message_box("completing PE steps" , "Title")
+    if "Atlas_Project_Name" in os.environ:
+        project_name=os.environ.get("Atlas_Project_Name")
+        answer=atlas_project_info_name({"project_name" : project_name})
+        project_id=answer["id"]
+    else:
+        project_id = os.environ.get("Atlas_Project_Id")
+    if "Resource_Group" in os.environ:
+        rg=os.environ.get("Resource_Group")
+        resource_name = settings["privatelink"][rg]["RG"]
+        vnet_name = settings["privatelink"][rg]["vnet"]
+        region=rg[rg.find("US_"):len(rg)]
+        subnet = settings["privatelink"][rg]["subnet"]    
+        #service_id = f'{rg}_'
+        do_fetch = True
+    if "PE_Resource_ID" in os.environ:
+        pe_resource_id = os.environ.get("PE_Resource_ID")
     else:
         sys.exit(1)
-    if provider == "AZURE" and "cidr" in ARGS:
-        cidr = ARGS["cidr"]
+    if "PE_SVCID" in os.environ:
+        pe_svcid = os.environ.get("PE_SVCID")
+    else:
+        bb.logit("error-missing PE Service Id")
+        sys.exit(1)
+    if "PE_IP" in os.environ:
+        cidr=os.environ.get("PE_IP")
     else:
         bb.logit("For azure - add cidr=<IPAddress>")
         sys.exit(1)
-    url = base_url + f'/groups/{project_id}/privateEndpoint/{provider}/endpointService/{service_id}/endpoint'
+    url = base_url + f'/groups/{project_id}/privateEndpoint/{provider}/endpointService/{pe_svcid}/endpoint'
     bb.logit(f"ServiceURL: {url}")
-    payload = {"id" : vpc_id}
+    payload = {"id" : pe_resource_id}
     if provider == "AZURE":
         payload["privateEndpointIPAddress"] = cidr
     result = rest_post(url, {"data" : payload})
@@ -338,32 +449,23 @@ def atlas_create_private_endpoint(details = {}):
         pprint.pprint(result)
     return result
 
-def azure_create_private_endpoint(details = {}):
+def azure_create_private_endpoint_service(details = {}):
     # Use azure CLI to create PE
-    '''
-    python3 atlas_rest.py action azure_cli_command service_id=64505410cdbca3236596c2cd resource_name=BB-DEVOps_group vnet_name=BradyDevOps subnet=default
-    resource_name
-    vnet_name
-    subnet_name
-    Result from rest call:
-    {'errorMessage': None,
-    'id': '64505410cdbca3236596c2cd',
-    'privateEndpoints': [],
-    'privateLinkServiceName': 'pls_64505410cdbca3236596c2cd',
-    'privateLinkServiceResourceId': '/subscriptions/52f0a73e-87fd-4b87-bc73-b76cbda361ee/resourceGroups/rg_64503bf4f695331ad04754fa_4atbmuhb/providers/Microsoft.Network/privateLinkServices/pls_64505410cdbca3236596c2cd',
-    'regionName': 'US_EAST_2',
-    'status': 'AVAILABLE'}
-    az network vnet subnet update --resource-group resource-group-name --vnet-name vnet-name --name subnet-xxxx1 --disable-private-endpoint-network-policies true
-    endpoint_name
-
-    az network private-endpoint create --resource-group resource-group-name --name endpoint-name --vnet-name vnet-name --subnet subnet-xxxx1 --private-connection-resource-id /subscriptions/52f0a73e-87fd-4b87-bc73-b76cbda361ee/resourceGroups/rg_64503bf4f695331ad04754fa_epc7hkvk/providers/Microsoft.Network/privateLinkServices/pls_64503bf4f695331ad04754f9 --connection-name pls_64503bf4f695331ad04754f9 --manual-request true
-    '''
     provider = "AZURE"
-    if "service_id" in ARGS:
-        service_id = ARGS["service_id"]
-        resource_name = ARGS["resource_name"]
-        vnet_name = ARGS["vnet_name"]
-        subnet = ARGS["subnet"]    
+    project_id = settings["project_id"]
+    if "Atlas_Project_Name" in os.environ:
+        project_name=os.environ.get("Atlas_Project_Name")
+        answer=atlas_project_info_name({"project_name" : project_name})
+        project_id=answer["id"]
+    else:
+        project_id = os.environ.get("Atlas_Project_Id")
+    if "Resource_Group" in os.environ:
+        rg=os.environ.get("Resource_Group")
+        resource_name = settings["privatelink"][rg]["RG"]
+        vnet_name = settings["privatelink"][rg]["vnet"]
+        region=rg[rg.find("US_"):len(rg)]
+        subnet = settings["privatelink"][rg]["subnet"]    
+        #service_id = f'{rg}_'
         do_fetch = True
     else:
         if "privateLinkServiceName" in details:
@@ -377,41 +479,216 @@ def azure_create_private_endpoint(details = {}):
             bb.logit("Pass results from private_link_svc call")
             sys.exit(1)
     if do_fetch:
-        details = atlas_private_endpoint_svc({"provider" : provider, "endpoint_svc_id" : service_id})
-        svc_id = details["privateLinkServiceName"]
-        resource_id = details["privateLinkServiceResourceId"]
-    endpoint_name = f"azure_pl_{subnet}"
+        results = atlas_create_private_endpoint_svc({"provider" : provider, "region" : region, "project_id" : project_id})
+        if "EXISTS" in results:
+            bb.logit("PE/PSC Already Exists")
+            return {}
+        svc_id = results["privateLinkServiceName"]
+        resource_id = results["privateLinkServiceResourceId"]
+    endpoint_name = f"PE-MDB-{project_name}"
                     
-    disabler = f"az network vnet subnet update --resource-group {resource_name} --vnet-name {vnet_name} --name {subnet} --disable-private-endpoint-network-policies true"
-    template = f"az network private-endpoint create --resource-group {resource_name} --name {endpoint_name} --vnet-name {vnet_name} --subnet {subnet} --private-connection-resource-id {resource_id} --connection-name {svc_id} --manual-request true"
+    disabler = f"network vnet subnet update --resource-group {resource_name} --vnet-name {vnet_name} --name {subnet} --disable-private-endpoint-network-policies true"
+    template = f"network private-endpoint create --resource-group {resource_name} --name {endpoint_name} --vnet-name {vnet_name} --subnet {subnet} --private-connection-resource-id {resource_id} --connection-name {svc_id} --manual-request true"
     bb.logit("# ----------------------- Azure CLI Commands -------------------------- #")
     print(disabler)
     print(" -------------------------- ")
     print(template)
+    temp_settings("set" , {"disabler" : disabler , "pe-template" : template})
     return({"disabler" : disabler, "endpoint" : template})
 
+def gcp_create_private_endpoint_service(details = {}):
+    # Use azure CLI to create PE
+    provider = "GCP"
+    project_id = settings["project_id"]
+    if "Atlas_Project_Name" in os.environ:
+        project_name=os.environ.get("Atlas_Project_Name")
+        answer=atlas_project_info_name({"project_name" : project_name})
+        project_id=answer["id"]
+    else:
+        project_id = os.environ.get("Atlas_Project_Id")
+    if "Resource_Group" in os.environ:
+        rg=os.environ.get("Resource_Group")
+        #resource_name = settings["privatelink"][rg]["RG"]
+        gcp_project_name = settings["privatelink"][rg]["RG"]
+        vpc_name = settings["privatelink"][rg]["vpc-name"]
+        region=rg[rg.find("us-"):len(rg)]
+        subnet = os.environ.get("GCP_Subnet")    
+        #service_id = f'{rg}_'
+        do_fetch = True
+    else:
+        if "serviceAttachmentNames" in details:
+            svc_id = details["serviceAttachmentNames"]
+            #resource_id = details["privateLinkServiceResourceId"]
+            #resource_name = details["resource_name"]
+            gcp_project_name = details["gcp_project_name"]
+            vpc_name = details["vpc_name"]
+            subnet = details["subnet"]
+            do_fetch = False
+        else:
+            bb.logit("Pass results from private_link_svc call")
+            sys.exit(1)
+    if do_fetch:
+        results = atlas_create_private_endpoint_svc({"provider" : provider, "region" : region, "project_id" : project_id})
+        if "EXISTS" in results:
+            bb.logit("PE/PSC Already Exists")
+            return {}
+        tempsettings=temp_settings()
+        svc_id = results["serviceAttachmentNames"][0]
+        svc_id = svc_id.replace("-0" , "")
+        #resource_id = results["privateLinkServiceResourceId"]
+    endpoint_name = f"psc-{region}-{os.environ.get('BUILD_NUMBER')}"
+    prop = {
+            "gcp_svc_id" : svc_id,
+            "gcp_region" : region,
+            "gcp_psc_name" : endpoint_name,
+            "gcp_subnet" : subnet,
+            "gcp_vpc" : vpc_name,
+            "gcp_project_name" : gcp_project_name}
+    gcp_template=gcptemp.get_template(prop)
+    
+    #disabler = f"network vnet subnet update --resource-group {resource_name} --vnet-name {vnet_name} --name {subnet} --disable-private-endpoint-network-policies true"
+    #template = f"network private-endpoint create --resource-group {resource_name} --name {endpoint_name} --vnet-name {vnet_name} --subnet {subnet} --private-connection-resource-id {resource_id} --connection-name {svc_id} --manual-request true"
+    bb.logit("# ----------------------- GCP CLI Commands -------------------------- #")
+    print(gcp_template)
+    temp_settings("set" , {"gcp_template" : "gcp_template.sh" , "gcp_svc_id" : svc_id , "gcp_region" : region, "gcp_project_name" : gcp_project_name , "gcp_psc_name" : endpoint_name})
+    with open (f"{os.environ.get('WORKSPACE')}/gcp_template.sh" , "w") as fil:
+        fil.write(gcp_template)
+    # result3=gcp_create_private_endpoint()
+    return({"gcp_template" : gcp_template})
+
+def temp_mock_gcp_psc():
+    prop = {
+            "gcp_svc_id" : "projects/p-a4f2bkmc6g3ztslrr8zmmo4y/regions/us-east4/serviceAttachments/sa-us-east4-63053838010e5f31f30bad30",
+            "gcp_region" : "us-east4",
+            "gcp_psc_name" : "psc-us-east4-109",
+            "gcp_subnet" : "projects/cvs-securehub-prod/regions/us-east4/subnetworks/sn-aacvs-us-east4-ent-nonprod-retail-psc-mongo-test",
+            "gcp_vpc" : "projects/cvs-securehub-prod/global/networks/vpc-aacvs-hub-reserved-nonprod-1",
+            "gcp_project_name" : "ent-nonprod-retail-psc"}
+    gcp_template=gcptemp.get_template(prop)
+    bb.logit("# ----------------------- GCP CLI Commands -------------------------- #")
+    print(gcp_template)
+    temp_settings("set" , {"gcp_template" : "gcp_template.sh" , "gcp_svc_id" : prop["gcp_svc_id"] , "gcp_region" : prop["gcp_region"] , "gcp_psc_name" : prop["gcp_psc_name"] , "gcp_subnet" : prop["gcp_subnet"] , "gcp_vpc" : prop["gcp_vpc"] , "gcp_project_name" : prop["gcp_project_name"]})
+    with open (f"{os.environ.get('WORKSPACE')}/gcp_template.sh" , "w") as fil:
+        fil.write(gcp_template)
+    # result3=gcp_create_private_endpoint()
+    # endpoint_rules=""
+    # temp_settings("set" , {"gcp_psc_name" : "psc-us-east4-108" , "gcp_project_name" : "ent-nonprod-retail-psc" , "pe_svcid" : "6500ca0ed640db1d333acd08" , "p_status" : "63053838010e5f31f30bad30"})
+    # gcp_create_private_endpoint()
+
+
 def gcp_create_private_endpoint(details = {}):
-    test = "true"
+    #https://cloud.mongodb.com/api/atlas/v2/groups/{groupId}/privateEndpoint/{cloudProvider}/endpointService/{endpointServiceId}/endpoint
+    if ("standalone" in details and details["standalone"]=="yes"):
+        pe_ip_addresses=os.environ.get("GCP_Create_Script")
+        gcp_svc_id=os.environ.get("GCP_Service_Attach_ID")
+        project_id=os.environ.get("Atlas_Project_ID")
+        gcp_project_name=os.environ.get("GCP_Project_Name")
+    else:
+        tempsettings=temp_settings()
+        filename=f'atlasEndpoints-{tempsettings["gcp_psc_name"]}.json'
+        gcp_project_name=tempsettings["gcp_project_name"]
+        pe_ip_addresses=[]
+        with open (f"{os.environ.get('WORKSPACE')}/{filename}" , "r") as fil:
+            # pe_ip_addresses=fil.read()
+            pe_ip_addresses_raw=json.load(fil)
+        gcp_svc_id= tempsettings["gcp_svc_id"]
+        pe_svcid=tempsettings["pe_svcid"]
+        project_id=tempsettings["project_id"]
+        for it in pe_ip_addresses_raw:
+            pe_ip_addresses.append({"endpointName": it["name"], "ipAddress" : it["IPAddress"]})
+    data={
+        "endpointGroupName":  tempsettings["gcp_psc_name"],
+        "endpoints": pe_ip_addresses,
+        "gcpProjectId": gcp_project_name
+        # "id": "650365f7924b06478165ee66"
+        
+    }
+    bb.logit("Completed Private Endpoint Service")
+    pprint.pprint(data)
+    # bb.logit(f'endpointserviceid : {tempsettings["pe_svcid"]}')
+    url = base_url + f'/groups/{project_id}/privateEndpoint/GCP/endpointService/{pe_svcid}/endpoint?pretty=true'
+    result = rest_post(url, {"data" : data})
+    bb.message_box("Response")
+    pprint.pprint(result)
+
+    #atlasEndpoints-{p["gcp_psc_name"]}.json
+#     {
+#   "endpointGroupName": "string",
+#   "endpoints": [
+#     {
+#       "endpointName": "string",
+#       "ipAddress": "string"
+#     }
+#   ],
+#   "gcpProjectId": "p-fdeeb3e43b8e733e5ab627b1",
+#   "id": "vpce-3bf78b0ddee411ba1"
+#     }
+    #https://cloud.mongodb.com/api/atlas/v2/groups/{groupId}/privateEndpoint/{cloudProvider}/endpointService/{endpointServiceId}/endpoint
+    
+
+
+
+def shell_test():
+    bb.run_shell(["pwd" , ""])
+    bb.run_shell(["./azlogin.sh" , ""])
+    #bb.run_shell(["az" , "--version"])
+    #bb.run_shell(["gcloud" , "--version"])
+
+def get_private_endpoints(details = {}):
+    #https://cloud.mongodb.com/api/atlas/v2/groups/{groupId}/privateEndpoint/{cloudProvider}/endpointService/{endpointServiceId}
+    cloudProvider=details["cloudProvider"]
+    project_id=atlas_project_check()
+    url = base_url + f'/groups/{project_id}/privateEndpoint/{cloudProvider}/endpointService?pretty=true'
+    result = rest_get(url, details)
+    if not "quiet" in details:
+        bb.message_box("Atlas Existing PE/PSC Info", "title")
+        pprint.pprint(result)
+    return result["results"]    
 
 def gcp_create_kms_encryption(details = {}):
     # https://cloud.mongodb.com/api/atlas/v1.0/groups/{groupId}/encryptionAtRest
-    key_resource_id = os.environ.get("Key_Resource_Id")
-    #service_account_key = settings["gcp_service_account_key"]
-    with open(ARGS["Secret_File"]) as secretfile:
+    atlas_organization_name = os.environ.get("Atlas_Organization_Name")
+    key_resource_id = os.environ.get("Key_Version_Resource_ID")
+    with open(os.environ.get("SECRET_FILE")) as secretfile:
         service_account_key = secretfile.read()
+    if "Atlas_Project_Name" in os.environ:
+        project_name=os.environ.get("Atlas_Project_Name")
+        answer=atlas_project_info_name({"project_name" : project_name})
+        project_id=answer["id"]
+    else:
+        project_id = os.environ.get("Atlas_Project_Id")
+        #service_account_key = settings["gcp_service_account_key"]
     payload = {"googleCloudKms" : {
         "enabled": True,
         "keyVersionResourceID": key_resource_id,
         "serviceAccountKey": service_account_key
     }}
-    url = base_url + f'/groups/{settings["project_id"]}/encryptionAtRest'
-    result = rest_update(url, {"data" : payload})
+    url = base_url + f'/groups/{project_id}/encryptionAtRest'
+    result = rest_update(url, {"data" : payload, "org":atlas_organization_name})
     if not "quiet" in details:
         bb.message_box("Atlas GCP-KMS Encryption Info", "title")
-        print(payload)
+        # print(payload)
         print("----------------------------------------------------")
         pprint.pprint(result)
     return result
+
+def kms_encryption_key_settings():
+    if "Atlas_Project_Name" in os.environ:
+        project_name=os.environ.get("Atlas_Project_Name")
+        answer=atlas_project_info_name({"project_name" : project_name})
+        project_id=answer["id"]
+    else:
+        project_id = os.environ.get("Atlas_Project_Id")
+    org=os.environ.get("Atlas_Organization_Name")
+    skey="sa_prod_key"
+    isnonprod= "nonprod" in project_name.lower().replace("-", "")
+    if isnonprod:
+        skey="sa_nonprod_key"
+    #os.environ["SERVICE_ACCOUNT_KEY"] = settings[org][skey]
+    temp_settings("set" , {"skey_status" : settings["atlas_organization"][org][skey]})
+    bb.logit(f'using_key {org}-{settings["atlas_organization"][org][skey]}')
+    # with open (f"{os.environ.get('WORKSPACE')}/skey_status.txt" , "w") as fil:
+    #         fil.write(settings["atlas_organization"][org][skey])
 
 def atlas_kms_encryption(details = {}):
     # https://cloud.mongodb.com/api/atlas/v1.0/groups/{groupId}/encryptionAtRest
@@ -510,10 +787,10 @@ def atlas_department_accounting(details = {}):
         #bb.logit(f'Item: {ipos} - {line["sku"]}')
     ans = db[collection].insert_one(billing)
 
-def updateClusterLabels():
+def updateClusterTags():
     bb.message_box("Updating Department Accounting", "title")
     #clusters = atlas_cluster_info({"quiet" : True, "all" : True})
-    projects = atlas_project_info({"quiet" : True})
+    projects = atlas_project_info({"org":"DBENG_PoC", "quiet" : True})
     project_names = {}
     clusters = []
     departments = [
@@ -529,43 +806,86 @@ def updateClusterLabels():
         for clus in cur_clusters:
             dept = random.choice(departments)
             bb.logit(f'- {clus["name"]} => {dept}')
-            data = {"labels" : [{"key" : "owner", "value" : item["name"]},{"key" : "department", "value" : dept}]}
+            data = {"tags" : [{"key" : "ITPR", "value" : "ITPR012534"},{"key" : "CostCenter", "value" : "82303"}]}
             atlas_update_cluster({"project" : clus["groupId"], "name" : clus["name"], "data" : data})
 
 
-def atlas_user_add(details = {}):
-    role = "read"
-    project_id = settings["project_id"]
-    if "Project_Name" in os.environ:
-        project_id = atlas_get_project_id()
-    if "role" in ARGS:
-        role = ARGS["role"]
-    if "DB_User" in os.environ:
-        # user:pass|role,user:pass|role
-        secrets = os.environ["DB_User"].split(",")
+def atlas_user_add(details={}):
+    role = "readWriteAnyDatabase"
+    if "user" in details:
+        secret=details["user"]
     elif "user" in ARGS:
-        secrets = [f'{ARGS["user"]}|{role}']    
-    else:
-        print("Send user=<user:password>")
-        sys.exit(1)
-    for secret in secrets:
+        secret = ARGS["user"]
+    elif "DB_Users" in os.environ:
+        secret = os.environ["DB_Users"]
         pair = secret.split("|")
         role = pair[1]
-        pair = pair[0].split(":")
-        obj = {
-            "databaseName" : "admin",
-            "roles" : [
-                {"databaseName" : "admin", "roleName" : role}
-            ],
-            "username" : pair[0],
-            "password" : pair[1]
-        }
-        url = base_url + f'/groups/{project_id}/databaseUsers?pretty=true'
-        result = rest_post(url, {"data" : obj})
-        bb.message_box("Response")
-        pprint.pprint(result)
+        secret = pair[0]
+    if "project_id" in details:
+        project_id = details["project_id"]
+    else:
+        project_id = settings["project_id"]
+    pair = secret.split(":")
+    if "role" in ARGS:
+        role = ARGS["role"]
+    elif "role" in details:
+        role = details["role"]
+    obj = {
+      "databaseName" : "admin",
+      "roles" : [
+        {"databaseName" : "admin", "roleName" : role}
+      ],
+      "username" : pair[0],
+      "password" : pair[1]
+    }
+    url = base_url + f'/groups/{project_id}/databaseUsers?pretty=true'
+    result = rest_post(url, {"data" : obj})
+    bb.message_box("Response")
+    pprint.pprint(result)
 
-def get_project_id(details = {}):
+def atlas_project_user_add(project_id="", dba_email=""):
+    if "user" not in ARGS and dba_email=="":
+        print("Send user=<useremail>")
+        sys.exit(1)
+    else:
+        user=dba_email
+    if project_id=="":
+        project_id=settings["project_id"]
+    role = "GROUP_OWNER"
+    if "role" in ARGS:
+        role = ARGS["role"]
+    obj = {
+      "roles" : [
+        role
+      ],
+      "username" : user
+    }
+    url = base_url + f'/groups/{project_id}/invites?pretty=true'
+    result = rest_post(url, {"data" : obj})
+    bb.message_box("Response")
+    pprint.pprint(result)
+
+def atlas_create_full_project():
+    result=atlas_create_project()
+    if "Atlas_Project_Name" in os.environ:
+        project_name=os.environ.get("Atlas_Project_Name")
+        answer=atlas_project_info_name({"project_name" : project_name})
+        project_id=answer["id"]
+    else:
+        project_id = os.environ.get("Atlas_Project_Id")
+    # project_id=answer["id"]
+    atlas_user_add({"user" : "mongodbadmin:xxxxxx" , "role" : "atlasAdmin" , "project_id" : project_id})
+    atlas_user_add({"user" : "atlasappuser:xxxxxx" , "role" : "readWriteAnyDatabase" , "project_id" : project_id})
+    for dba in settings["dba_email"]:
+        atlas_project_user_add(project_id, dba)
+    temp_settings("set" , {"p_status" : "NEW" , "project_id" : project_id})
+
+def atlas_create_cluster():
+    #if "project_name" not in ARGS:
+    #    if "Atlas_Project_Name" in os.environ:
+    #        name=os.environ.get("Atlas_Project_Name")
+    #else:
+    #    name=ARGS["project_name"]
     if "Atlas_Project_Name" in os.environ:
         project_name=os.environ.get("Atlas_Project_Name")
         answer=atlas_project_info_name({"project_name" : project_name})
@@ -577,72 +897,38 @@ def get_project_id(details = {}):
         org_id = os.environ.get("Atlas_Organization_Name")
     else:
         org_id=settings["org_id"]
-
-def atlas_project_info_name(details = {}):
-    name=details['project_name']
-    #url = f'{base_url}/groups/{name}'
-    url = f'{base_url}/groups/byName/{name}'
-    result = rest_get(url, details) #, {"verbose" : True})
-    if not "quiet" in details:
-        bb.message_box("Atlas Projects", "title")
-        pprint.pprint(result)
-    return result
-
-def atlas_project_check():
-    if "Atlas_Project_Name" in os.environ:
-        project_name=os.environ.get("Atlas_Project_Name")
-        #answer=atlas_project_info({"project_name" : project_name})
-        answer=atlas_project_info_name({"project_name" : project_name})
-        if "id" in answer:
-            p_status = answer["id"]
-        else:
-            p_status = "NEW"
-        with open (f"{os.environ.get('WORKSPACE')}/p_status.txt" , "w") as fil:
-            fil.write(p_status)
     
-def atlas_create_cluster():
-    if "template" not in ARGS:
-        print("Send template=<template_name>")
-        sys.exit(1)
-    t_name = ARGS["template"]
-    name = f"apiCluster{random.randint(1,20)}"
-    if "name" in ARGS:
-        name = ARGS["name"]
-    provider = "AWS"
-    if "cloud" in ARGS:
-        provider = ARGS["cloud"].upper()
-    template = settings["templates"][provider][t_name.upper()]
-    obj = {
-      "name" : name,
-      "numShards" : 1,
-      "replicationFactor" : 3,
-      "providerSettings" : {
-        "providerName" : provider,
-        "regionName" : template["region"],
-        "instanceSizeName" : t_name.upper()
-      },
-      "diskSizeGB" : template["disk_gb"],
-      "backupEnabled" : False
+    if "template" in ARGS:
+        template = ARGS["template"]
+    else:
+        template=os.environ.get("Template")
+    tier = settings["templates"][template]["tier"]
+    provider = settings["templates"][template]["provider"]
+    region = settings["templates"][template]["region"]
+    disk_size = settings["templates"][template]["disk_gb"]
+    name=os.environ["Cluster_Name"]
+    if os.environ["Disk_size"] != "":
+        disk_size=int(os.environ["Disk_size"])
+    cluster_config = {
+        "name" : name,
+        "numShards" : 1,
+        "replicationFactor" : 3,
+        "providerSettings" : {
+            "providerName" : provider,
+            "regionName" : region,
+            "instanceSizeName" : tier
+        },
+        "diskSizeGB" : disk_size,
+        "providerBackupEnabled" : True
+        # "backupEnabled" : False,
+        # "pitEnabled" : False
+
     }
-    if provider == "AWS":
-        obj["providerSettings"]["diskIOPS"] = template["iops"]
-    url = base_url + f'/groups/{settings["project_id"]}/clusters?pretty=true'
-    result = rest_post(url, {"data" : obj})
+    #url = base_url + f'/groups/{settings["project_id"]}/clusters?pretty=true'
+    url = base_url + f'/groups/{project_id}/clusters?pretty=true'
+    result = rest_post(url, {"data" : cluster_config, "org": org_id })
     bb.message_box("Response")
     pprint.pprint(result)
-
-def atlas_create_cluster_new():
-    if "template" not in ARGS:
-        print("Send template=<template_name>")
-        sys.exit(1)
-    t_name = ARGS["template"]
-    if not ".json" in t_name:
-        t_name = f'{t_name}.json'
-    obj = bb.read_json(os.path.join(base_path, "templates", t_name))
-    url = base_url + f'/groups/{settings["project_id"]}/clusters?pretty=true'
-    #result = rest_post(url, {"data" : obj})
-    #bb.message_box("Response")
-    pprint.pprint(obj)
 
 def atlas_update_cluster(args = {}):
     if len(args.keys()) == 0:
@@ -672,6 +958,51 @@ def atlas_resume_cluster():
         print("Send name=<cluster_name>")
         sys.exit(1)
     atlas_update_cluster({"name" : name, "data" : data})
+
+def atlas_create_project():
+    if "project_name" not in ARGS:
+        if "Atlas_Project_Name" in os.environ:
+            name=os.environ.get("Atlas_Project_Name")
+    else:
+        name=ARGS["project_name"]
+    if "Atlas_Organization_Name" in os.environ:
+        org_id = settings["atlas_organization"][os.environ["Atlas_Organization_Name"]]["org_id"]
+    else:
+        org_id=settings["org_id"] 
+    project_config={"name" : name, "orgId" : org_id, "withDefaultAlertsSettings" : True}
+    url = base_url + f'/groups?pretty=true'
+    result = rest_post(url, {"data" : project_config})
+    project_id = result["id"]
+    result = atlas_enable_audit(project_id)
+    bb.message_box("Response")
+    pprint.pprint(result)
+    return result
+
+def atlas_get_audit_details(project_id):
+    #https://cloud.mongodb.com/api/atlas/v2/groups/{groupId}/auditLog
+    tempsettings = temp_settings()
+    url = base_url + f'/groups/{project_id}/auditLog?pretty=true'
+    result = rest_get(url)
+    bb.message_box("Response")
+    pprint.pprint(result)
+    return result
+    
+
+def atlas_enable_audit(project_id):
+    #https://cloud.mongodb.com/api/atlas/v2/groups/{groupId}/auditLog
+    tempsettings = temp_settings()
+    if "project_id" in tempsettings and tempsettings["project_id"]!="None":
+        project_id=tempsettings["project_id"]
+    url = base_url + f'/groups/{project_id}/auditLog?pretty=true'
+    filter=""
+    with open (f"{os.environ.get('WORKSPACE')}/Mongo/audit_template.json" , "r") as fil:
+        filter=fil.read()
+    pprint.pprint(filter)
+    result = rest_update(url, {"data" : {"enabled" : True ,"auditFilter" : filter, "auditAuthorizationSuccess": False}})
+    #result = rest_update(url, {"data" : {"enabled" : True }})
+    bb.message_box("Response")
+    pprint.pprint(result)
+    return result
 
 def atlas_search_indexes():
     #	/groups/{GROUP-ID}/clusters/{CLUSTER-NAME}/fts/indexes/{DATABASE-NAME}/{COLLECTION-NAME}
@@ -727,7 +1058,7 @@ def atlas_log_files(details = {"verbose" : True}):
     members = c_string.split(",")
     for node in members:
         host = node.replace("mongodb://","")
-        host = re.sub(':27017.*',"",host)
+        host = re.sub("\:27017.*","",host)
         get_log_file(host, start_time, end_time, log_dir, details)
 
 
@@ -735,7 +1066,7 @@ def get_log_file(cluster, start, end, log_path, details = {}):
     '''
     curl --user '{PUBLIC-KEY}:{PRIVATE-KEY}' --digest \
  --header 'Accept: application/gzip' \
- --request GET "https://cloud.mongodb.com/api/atlas/v1.0/groups/{GROUP-ID}/clusters/{HOSTNAME}/logs/mongodb.gz?startDate=&endDate=<unixepoch>" \
+ --request GET "https://protect-us.mimecast.com/s/li3WCXD2MOiqPAL2qIkE-by?domain=cloud.mongodb.com<unixepoch>" \
  --output "mongodb.gz
     '''
     details["headers"] = {"Content-Type" : "application/json", "Accept" : "application/gzip" }
@@ -755,69 +1086,42 @@ def get_log_file(cluster, start, end, log_path, details = {}):
         pprint.pprint(result)
     return result #result["results"]
 
-def atlas_online_archive():
-    # POST /groups/{GROUP-ID}/clusters/{CLUSTER-NAME}/onlineArchives
-    if "json" not in ARGS:
-        print("Send json=<file_path>")
-        sys.exit(1)
-    tname = ARGS["json"]
-    tinfo = bb.read_json(tname)
-    url = base_url + f'/groups/{settings["project_id"]}/clusters/{settings["cluster_name"]}/onlineArchives'
-    result = rest_post(url, {"data" : tinfo})
-    bb.message_box("Response")
-    pprint.pprint(result)
 
-# ------------------------------------------------------------ #
-#    UTILITY
-# ------------------------------------------------------------ #
 def get_api_key(details = {}):
+    org=''
     if "org" in details:
-        result = settings["organizations"][org]["api_key"]
+        org=details["org"]
+    if org=='':
+        result=api_key
     else:
-        result = api_key
+        result=settings['atlas_organization'][org]["api_key"]
+    #bb.logit(f"api_key: {api_key}")
     return result
 
 def rest_get(url, details = {}):
-    headers = {"Content-Type" : "application/json", "Accept" : "application/json" }
-    if "headers" in details:
-        headers = details["headers"]
-    api_pair = bb.desecret(get_api_key(details)).split(":")
-    response = requests.get(url, auth=HTTPDigestAuth(api_pair[0], api_pair[1]), headers=headers)
-    result = response.content.decode('ascii')
-    if "verbose" in details:
-        bb.logit(f"Status: {response.status_code}")
-        bb.logit(f"Headers: {response.headers}")
-        bb.logit(f"URL: {url}")
-        bb.logit(f"Response: {result}")
-    return(json.loads(result))
-
-def rest_get_url():
-    url = ARGS["url"]
-    key = ARGS["key"]
-    secret = ARGS["secret"]
-    headers = {"Content-Type" : "application/json", "Accept" : "application/json" }
-    response = requests.get(url, auth=HTTPDigestAuth(key, secret), headers=headers)
-    result = response.content.decode('ascii')
-    bb.logit(f"Status: {response.status_code}")
-    bb.logit(f"Headers: {response.headers}")
-    bb.logit(f"URL: {url}")
-    bb.logit(f"Response: {result}")
-    return(json.loads(result))
-   
-def rest_get_ip():
-  url="http://api.ipify.org"
-  response = requests.get(url)
-  result = response.content.decode('ascii')
-  bb.logit(f"URL: {url}")
-  bb.logit(f"Response: {result}")
-  pprint.pprint(result)
-
-def rest_get_file(url, details = {}):
-  # https://stackoverflow.com/questions/36292437/requests-gzip-http-download-and-write-to-disk
   headers = {"Content-Type" : "application/json", "Accept" : "application/json" }
   if "headers" in details:
       headers = details["headers"]
-  api_pair = bb.desecret(get_api_key(details)).split(":")
+  cur_api_key=get_api_key(details)
+  api_pair = bb.desecret(cur_api_key).split(":")
+  #api_pair = [os.environ["API_USER"],os.environ["API_SECRET"]]
+  #print (f'key: {api_pair[0]}:{api_pair[1]}')
+  response = requests.get(url, auth=HTTPDigestAuth(api_pair[0], api_pair[1]), headers=headers)
+  result = response.content.decode('ascii')
+  if "verbose" in details:
+      bb.logit(f"Status: {response.status_code}")
+      bb.logit(f"Headers: {response.headers}")
+      bb.logit(f"URL: {url}")
+      bb.logit(f"Response: {result}")
+  return(json.loads(result))
+
+def rest_get_file(url, details = {}):
+  # https://protect-us.mimecast.com/s/V_7rCYENMPINWYyMNhMTkLH?domain=stackoverflow.com
+  headers = {"Content-Type" : "application/json", "Accept" : "application/json" }
+  if "headers" in details:
+      headers = details["headers"]
+  cur_api_key=get_api_key(details)
+  api_pair = bb.desecret(cur_api_key).split(":")
   local_filename = details["filename"]
   try:
       response = requests.get(url, auth=HTTPDigestAuth(api_pair[0], api_pair[1]), headers=headers, stream=True)
@@ -852,7 +1156,8 @@ def rest_post(url, details = {}):
   headers = {"Content-Type" : "application/json", "Accept" : "application/json"}
   if "headers" in details:
       headers = details["headers"]
-  api_pair = bb.desecret(get_api_key(details)).split(":")
+  cur_api_key=get_api_key(details)
+  api_pair = bb.desecret(cur_api_key).split(":")
   post_data = details["data"]
   response = requests.post(url, auth=HTTPDigestAuth(api_pair[0], api_pair[1]), data=json.dumps(post_data), headers=headers)
   result = response.json() #content.decode('ascii')
@@ -864,7 +1169,8 @@ def rest_post(url, details = {}):
 
 def rest_update(url, details = {}):
   headers = {"Content-Type" : "application/json", "Accept" : "application/json"}
-  api_pair = bb.desecret(get_api_key(details)).split(":")
+  cur_api_key=get_api_key(details)
+  api_pair = bb.desecret(cur_api_key).split(":")
   post_data = details["data"]
   if isinstance(post_data, str):
       post_data = json.loads(post_data)
@@ -881,11 +1187,6 @@ def test_shell():
   cmd = ["which", "curl"]
   result = bb.run_shell(cmd)
 
-def test_driver():
-    conn = client_connection("turi")
-    db = conn["test"]
-    db.test.insert_one({"name" : "testitem"})
-
 def template_test():
     # Open a template into a json object and modify it
     cur_temp = copy.deepcopy(settings["templates"]["test"])
@@ -898,28 +1199,20 @@ def template_test():
     print("Parent")
     pprint.pprint(settings["templates"]["test"])
 
-def json_template(temp_type):
-    if not temp_type.endsWith(".json"):
-        temp_type = temp_type + ".json"
-    ppath = f'{base_path}/{temp_type}'
-    result = bb.read_json(ppath)
-    return(copy.deepcopy(result))
+def atlas_online_archive():
+    # POST /groups/{GROUP-ID}/clusters/{CLUSTER-NAME}/onlineArchives
+    if "json" not in ARGS:
+        print("Send json=<file_path>")
+        sys.exit(1)
+    tname = ARGS["json"]
+    tinfo = bb.read_json(tname)
+    url = base_url + f'/groups/{settings["project_id"]}/clusters/{settings["cluster_name"]}/onlineArchives'
+    result = rest_post(url, {"data" : tinfo})
+    bb.message_box("Response")
+    pprint.pprint(result)
 
-def get_setting(setting, details = {}):
-    # Cascade through this
-    # details = {"env" : "Project_Name"}
-    result = "none"
-    if "env" in details:
-        result=os.environ.get(details["env"])
-    else:
-        if setting in temp_settings:
-            result = temp_settings[setting]
-        elif setting in settings:
-            result = settings[setting]
-    return result
-    
 def temp_settings(action="get", data={}):
-    fpath = os.path.join(base_path, temp_settings_file)
+    json_file = os.path.join(base_path, temp_settings_file)
     if action == "get":
         tempsettings = read_temp_settings()
     elif action == "set":
@@ -927,12 +1220,37 @@ def temp_settings(action="get", data={}):
         for item in data:
             tempsettings[item] = data[item]
         with open(json_file, 'w') as outfile:
-                json.dump(tempsettings, fpath)
+                json.dump(tempsettings, outfile)
     return tempsettings
+
+def get_setting(setting, details = {}):
+    # Cascade through this
+    # details = {"env" : "Project_Name"}
+    result = "none"
+    if "arg" in details and details["arg"] in ARGS:
+        result=ARGS[details["arg"]]
+    elif "env" in details and details["env"] in os.env:
+        result=os.environ.get(details["env"])
+    else:
+        if setting in tempsettings:
+            result = tempsettings[setting]
+        elif setting in settings:
+            result = settings[setting]
+    if "error" in details:
+        bb.logit(f'ERROR: missing {setting}')
+        sys.exit(1)
+    return result
 
 def read_temp_settings():
     tempsettings = bb.read_json(os.path.join(base_path, temp_settings_file))
     return tempsettings
+
+def json_template(temp_type):
+    if not temp_type.endsWith(".json"):
+        temp_type = temp_type + ".json"
+    ppath = f'{base_path}/{temp_type}'
+    result = bb.read_json(ppath)
+    return(copy.deepcopy(result))
 
 def client_connection(type = "uri", details = {}):
     mdb_conn = settings[type]
@@ -953,13 +1271,14 @@ def client_connection(type = "uri", details = {}):
 #     MAIN
 #------------------------------------------------------------------#
 if __name__ == "__main__":
-    settings_file = "rest_secret_settings.json"
     bb = Util()
     ARGS = bb.process_args(sys.argv)
     base_path = os.path.dirname(os.path.abspath(__file__))
     settings = bb.read_json(os.path.join(base_path, settings_file))
-    temp_settings_file = "temp_settings.json"
-    api_key = settings["api_key"]
+    if "Atlas_Organization_Name" in os.environ:
+        api_key = settings["atlas_organization"][os.environ["Atlas_Organization_Name"]]["api_key"]
+    else:
+        api_key = settings["api_key"]
     bb.add_secret(bb.desecret(api_key))
 
     base_url = settings["base_url"]
@@ -970,28 +1289,12 @@ if __name__ == "__main__":
         atlas_org_info()
     elif ARGS["action"] == "org_projects":
         atlas_project_info()
-    elif ARGS["action"] == "project_detail":
-        atlas_project_detail()
     elif ARGS["action"] == "alert_settings":
         atlas_project_alerts()
     elif ARGS["action"] == "private_links":
         atlas_private_endpoints()
-    elif ARGS["action"] == "private_link_svc_detail":
-        atlas_private_endpoint_svc()
     elif ARGS["action"] == "private_link":
         atlas_private_endpoint_detail()
-    elif ARGS["action"] == "create_private_link_svc":
-        atlas_create_private_endpoint_svc()
-    elif ARGS["action"] == "create_private_link":
-        atlas_create_private_endpoint()
-    elif ARGS["action"] == "azure_cli_command":
-        azure_create_private_endpoint()
-    elif ARGS["action"] == "gcp_cli_command":
-        gcp_create_private_endpoint()
-    elif ARGS["action"] == "create_kms_encryption":
-        gcp_create_kms_encryption()
-    elif ARGS["action"] == "kms_encryption":
-        atlas_kms_encryption()
     elif ARGS["action"] == "billing":
         atlas_billing()
     elif ARGS["action"] == "billing_invoice":
@@ -1008,18 +1311,18 @@ if __name__ == "__main__":
         atlas_db_user_audit()
     elif ARGS["action"] == "user_audit":
         atlas_user_audit()
-    elif ARGS["action"] == "cluster_audit":
+    elif ARGS["action"] == "cluster_audit_info":
         atlas_cluster_audit()
     elif ARGS["action"] == "cluster_info":
         atlas_cluster_info()
     elif ARGS["action"] == "create_cluster":
-        atlas_create_cluster_new()
+        atlas_create_cluster()
     elif ARGS["action"] == "update_cluster":
         atlas_update_cluster()
     elif ARGS["action"] == "resume":
         atlas_resume_cluster()
-    elif ARGS["action"] == "update_cluster_labels":
-        updateClusterLabels()
+    elif ARGS["action"] == "update_cluster_tags":
+        updateClusterTags()
     elif ARGS["action"] == "online_archive":
         atlas_online_archive()
     elif ARGS["action"] == "search_indexes":
@@ -1043,33 +1346,45 @@ if __name__ == "__main__":
         bb.logit(f'Encrypted: {res}')
     elif ARGS["action"] == "decrypt":
         res = bb.desecret(ARGS["secret"])
-        print(f'Decrypted: {res}',"SECRET")
-    elif ARGS["action"] == "get_ip":
-        rest_get_ip()
-    elif ARGS["action"] == "test_driver":
-        test_driver()
+        bb.logit(f'Decrypted: {res}',"SECRET")
+    elif ARGS["action"] == "get_url":
+        rest_get_url()
+    elif ARGS["action"] == "project_info":
+        atlas_project_info()
+    elif ARGS["action"] == "project_create":
+        atlas_create_project()
+    elif ARGS["action"] == "create_full_project":
+        atlas_create_full_project()
+    elif ARGS["action"] == "project_user_add":
+        atlas_project_user_add()
+    elif ARGS["action"] == "create_kms_encryption":
+        gcp_create_kms_encryption()
+    elif ARGS["action"] == "project_check":
+        atlas_project_check()
+    elif ARGS["action"] == "azure_create_private_endpoint_service":
+        azure_create_private_endpoint_service()
+    elif ARGS["action"] == "gcp_create_private_endpoint_service":
+        gcp_create_private_endpoint_service()
+    elif ARGS["action"] == "gcp_create_private_endpoint":
+        gcp_create_private_endpoint({"standalone": "no"})
+    elif ARGS["action"] == "azure_create_private_endpoint":
+        azure_create_private_endpoint()
+    elif ARGS["action"] == "kms_encryption_key_settings":
+        kms_encryption_key_settings()
+    elif ARGS["action"] == "temp_mock_gcp_psc":
+        temp_mock_gcp_psc()
+    elif ARGS["action"] == "get_audit_details":
+        if "project_id" in ARGS:
+            project_id=ARGS["project_id"]
+        atlas_get_audit_details(project_id)
+    elif ARGS["action"] == "update_audit_details":
+        if "project_id" in ARGS:
+            project_id=ARGS["project_id"]
+        atlas_enable_audit(project_id)
+    elif ARGS["action"] == "shell_test":
+        shell_test()
     else:
         print(f'{ARGS["action"]} not found')
 
 
-
 #------------------- Not Used ------------------------#
-
-def curl_get(url):
-  cmd = ["curl","-X","GET","-u",f'{bb.desecret(api_key)}', "--digest", url]
-  result = bb.run_shell(cmd)
-  jsoninfo = bb.read_json(result.stdout, False)
-  return jsoninfo
-
-def curl_post(url, details = {}):
-  tempfile = f'{base_path}/data.json'
-  post_data = details["data"]
-  with open(tempfile, 'w') as outfile:
-    json.dump(post_data, outfile, sort_keys=True, indent=4)
-  cmd = ["curl","-X","POST","-i","-u",f'{bb.desecret(api_key)}', "--digest", "-H", '"Content-Type: application/json"',url,"--data",f'@{tempfile}']
-  time.sleep(1)
-  result = bb.run_shell(cmd)
-  jsoninfo = {}
-  if len(result.stdout) > 3:
-      jsoninfo = json.loads(result.stdout.decode('ascii'))
-  return jsoninfo

@@ -1,0 +1,76 @@
+{
+    "uri" : "mongodb+srv://m10basicagain-vmwqj.mongodb.net",
+    "cluster_name" : "DBEng-Automation-Demo",
+    "database" : "billing",
+    "collection" : "paths",
+    "username" : "main_admin",
+    "password" : "*********",
+    "version" : "1.0",
+      "base_url" : "https://cloud.mongodb.com/api/atlas/v1.0",
+    "dba_email" : ["khanm@cvshealth.com" , "shaika2@cvshealth.com" , "cenajarro@cvshealth.com"],
+    "atlas_organization" : {
+      "DBENG_PoC" : {"org_id" : "630538197ac40167f2905dc0", "api_key" : "YmhtZnl3cm86NTUzZmM0ZDMtZjQzMC00NDBkLWFlNjUtNDhhOGVhZDNiMTk3", "sa_nonprod_key" : "gcp-xxx-nonprod-xxxx-key", "sa_prod_key" : "gcp-xxx-prod-xxxx-key"}
+      },
+    "templates" : {
+      "AZURE_M10_EAST_2" : {"tier": "M10" , "provider" : "AZURE" ,"region" : "US_EAST_2", "disk_gb" : 32},
+      "AZURE_M20_EAST_2" : {"tier": "M20" , "provider" : "AZURE" ,"region" : "US_EAST_2", "disk_gb" : 32},
+      "AZURE_M30_EAST_2" : {"tier": "M30" , "provider" : "AZURE" ,"region" : "US_EAST_2", "disk_gb" : 64},
+      "AZURE_M40_EAST_2" : {"tier": "M40" , "provider" : "AZURE" ,"region" : "US_EAST_2", "disk_gb" : 128},
+      "AZURE_M50_EAST_2" : {"tier": "M50" , "provider" : "AZURE" ,"region" : "US_EAST_2", "disk_gb" : 128},
+      "AZURE_M60_EAST_2" : {"tier": "M60" , "provider" : "AZURE" ,"region" : "US_EAST_2", "disk_gb" : 256},
+      "AZURE_M10_US_CENTRAL" : {"tier": "M10" , "provider" : "AZURE" ,"region" : "US_CENTRAL", "disk_gb" : 32},
+      "AZURE_M20_US_CENTRAL" : {"tier": "M20" , "provider" : "AZURE" ,"region" : "US_CENTRAL", "disk_gb" : 32},
+      "AZURE_M30_US_CENTRAL" : {"tier": "M30" , "provider" : "AZURE" ,"region" : "US_CENTRAL", "disk_gb" : 64},
+      "AZURE_M40_US_CENTRAL" : {"tier": "M40" , "provider" : "AZURE" ,"region" : "US_CENTRAL", "disk_gb" : 128},
+      "AZURE_M50_US_CENTRAL" : {"tier": "M50" , "provider" : "AZURE" ,"region" : "US_CENTRAL", "disk_gb" : 128},
+      "AZURE_M60_US_CENTRAL" : {"tier": "M60" , "provider" : "AZURE" ,"region" : "US_CENTRAL", "disk_gb" : 256},
+      "GCP_M10_EAST_4" : {"tier": "M10" , "provider" : "GCP" ,"region" : "US_EAST_4", "disk_gb" : 30},
+      "GCP_M20_EAST_4" : {"tier": "M20" , "provider" : "GCP" ,"region" : "US_EAST_4", "disk_gb" : 30},
+      "GCP_M30_EAST_4" : {"tier": "M30" , "provider" : "GCP" ,"region" : "US_EAST_4", "disk_gb" : 50},
+      "GCP_M40_EAST_4" : {"tier": "M40" , "provider" : "GCP" ,"region" : "US_EAST_4", "disk_gb" : 100},
+      "GCP_M50_EAST_4" : {"tier": "M50" , "provider" : "GCP" ,"region" : "US_EAST_4", "disk_gb" : 100},
+      "GCP_M60_EAST_4" : {"tier": "M60" , "provider" : "GCP" ,"region" : "US_EAST_4", "disk_gb" : 200},
+      "GCP_M80_EAST_4" : {"tier": "M80" , "provider" : "GCP" ,"region" : "US_EAST_4", "disk_gb" : 500},
+      "GCP_M10_WEST_2" : {"tier": "M10" , "provider" : "GCP" ,"region" : "US_WEST_2", "disk_gb" : 30},
+      "GCP_M20_WEST_2" : {"tier": "M20" , "provider" : "GCP" ,"region" : "US_WEST_2", "disk_gb" : 30},
+      "GCP_M30_WEST_2" : {"tier": "M30" , "provider" : "GCP" ,"region" : "US_WEST_2", "disk_gb" : 50},
+      "GCP_M40_WEST_2" : {"tier": "M40" , "provider" : "GCP" ,"region" : "US_WEST_2", "disk_gb" : 100},
+      "GCP_M50_WEST_2" : {"tier": "M50" , "provider" : "GCP" ,"region" : "US_WEST_2", "disk_gb" : 100},
+      "GCP_M60_WEST_2" : {"tier": "M60" , "provider" : "GCP" ,"region" : "US_WEST_2", "disk_gb" : 200},
+      "GCP_M80_WEST_2" : {"tier": "M80" , "provider" : "GCP" ,"region" : "US_WEST_2", "disk_gb" : 500},
+      "AWS_M10_EAST_1" : {"tier": "M10" , "provider" : "AWS" ,"region" : "US_EAST_1", "disk_gb" : 30},
+      "AWS_M20_EAST_1" : {"tier": "M20" , "provider" : "AWS" ,"region" : "US_EAST_1", "disk_gb" : 30},
+      "AWS_M30_EAST_1" : {"tier": "M30" , "provider" : "AWS" ,"region" : "US_EAST_1", "disk_gb" : 50},
+      "AWS_M40_EAST_1" : {"tier": "M40" , "provider" : "AWS" ,"region" : "US_EAST_1", "disk_gb" : 100},
+      "AWS_M50_EAST_1" : {"tier": "M50" , "provider" : "AWS" ,"region" : "US_EAST_1", "disk_gb" : 100},
+      "AWS_M60_EAST_1" : {"tier": "M60" , "provider" : "AWS" ,"region" : "US_EAST_1", "disk_gb" : 200},
+      "AWS_M80_EAST_1" : {"tier": "M80" , "provider" : "AWS" ,"region" : "US_EAST_1", "disk_gb" : 500},
+      "AWS_M10_EAST_2" : {"tier": "M10" , "provider" : "AWS" ,"region" : "US_EAST_2", "disk_gb" : 30},
+      "AWS_M20_EAST_2" : {"tier": "M20" , "provider" : "AWS" ,"region" : "US_EAST_2", "disk_gb" : 30},
+      "AWS_M30_EAST_2" : {"tier": "M30" , "provider" : "AWS" ,"region" : "US_EAST_2", "disk_gb" : 50},
+      "AWS_M40_EAST_2" : {"tier": "M40" , "provider" : "AWS" ,"region" : "US_EAST_2", "disk_gb" : 100},
+      "AWS_M50_EAST_2" : {"tier": "M50" , "provider" : "AWS" ,"region" : "US_EAST_2", "disk_gb" : 100},
+      "AWS_M60_EAST_2" : {"tier": "M60" , "provider" : "AWS" ,"region" : "US_EAST_2", "disk_gb" : 200},
+      "AWS_M80_EAST_2" : {"tier": "M80" , "provider" : "AWS" ,"region" : "US_EAST_2", "disk_gb" : 500}   
+    }
+  ,
+    "subscriptions" : {
+      "AZURE_US_EAST_2_SHUB" : "xxxxx" , "AZURE_US_CENTRAL_SHUB" : "xxxx" , "AZURE_DBENG_POC" : "xxxxx"
+    }
+    ,
+    "gcp_project" : {
+      "GCP_xxxx_nonprod_us-east4" : "ent-nonprod-xxxx-psc"
+    }
+    ,
+    "aws-account" : {
+      "AWS_xxxxx" : "xxxxx"
+    }
+  ,
+    "privatelink" : {
+      "AWS_POC_US_EAST_1" : {"sub": "AWS_xxxxx" , "vpc-id": "vpc-xxxxx" ,"subnet" : "subnet-xxxx"},
+      "AZURE_POC_US_EAST_2" : {"sub": "AZURE_DBENG_POC" , "RG": "rg-xxxxx" , "vnet" : "vnet-xxxx" ,"subnet" : "snet-xxxxxx"},
+      "GCP_RETAIL_us-east4" : {"RG": "ent-xxxx" , "vpc-name" : "projects/xxxxx/global/networks/xxxx" ,"subnet" : "projects/xxxx/regions/us-east4/subnetworks/xxxxx"}
+    }
+  
+  }
+  
