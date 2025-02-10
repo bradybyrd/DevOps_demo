@@ -114,6 +114,70 @@ def atlas_cluster_audit():
     #  Find the way here to push to ServiceNow
     pprint.pprint(bulk_docs)
         
+def atlas_monitoring():
+    #  Loops through orgs and projects to get details on each cluster and push to atlas
+    orgs = settings["organizations"]
+    bulk_docs = []
+    bulk_projects = []
+    icnt = 0
+    out_path = ""
+    o_contents = {}
+    p_contents = {}
+    repo = "config"
+    bb.message_box("Atlas Cluster Audit","title")
+    if "repo" in ARGS:
+        repo = ARGS["repo"]
+    for org in orgs:
+        bb.message_box(f'Organization: {org}')
+        org_info = {"organization" : org, "id" : orgs[org]["org_id"], "api_key" : orgs[org]["api_key"], "quiet" : "yes"}
+        org_doc = {"name" : org, "org_id" : org_info["id"]}
+        o_contents = {"name" : org, "org_id" : org_info["id"], "projects" : []}
+        result = atlas_project_info(org_info)
+        if "name" not in result[0]:
+            bb.logit('Failed to get info for org - check API key access')
+            next
+        for proj in result:
+            bb.logit(f'Clusters: [{proj["clusterCount"]}]')
+            org_info["project_id"] = proj["id"]
+            project_details = {"org" : org_doc, "project_id" : proj["id"], "name" : proj["name"], "project" : proj}
+            p_contents = {"org" : org_doc, "project_id" : proj["id"], "name" : proj["name"], "project" : proj, "clusters" : []}
+            clust_info = atlas_cluster_info(org_info)
+            for cluster in clust_info:
+                bb.logit(f'Cluster: {cluster["name"]} - {cluster["providerSettings"]["instanceSizeName"]}')
+                cluster_doc = {"organization" : org_doc}
+                cluster_doc["project_id"] = proj["id"]
+                cluster_doc["project"] = proj["name"]
+                cluster_doc["cluster_id"] = cluster["id"]
+                cluster_doc["cluster_name"] = cluster["name"]
+                cluster_doc["timestamp"] = dt.datetime.now()
+                cluster_doc["cluster_details"] = cluster
+                bulk_docs.append(cluster_doc)
+                p_contents["clusters"].append(cluster_doc)
+            create_repo_document(repo, org, p_contents)
+            o_contents["projects"].append(project_details)
+            bulk_projects.append(project_details)
+        create_repo_document(repo, org, o_contents)
+    bb.logit("# ------------- Complete ------------- #")
+    #  Find the way here to push to ServiceNow
+    pprint.pprint(bulk_projects)
+    #pprint.pprint(bulk_docs)
+
+def create_repo_document(repo_path,local_path, doc):
+    # take the info and push to a json document in a git repo
+    la = "di da"
+    base_path = settings["repo_path"]
+    name = "newfile_39586.json"
+    #pprint.pprint(doc)
+    if "name" in doc:
+        name = doc["name"]
+    if local_path != "":
+        full_path = f'{base_path}/{repo_path}/{local_path}'
+    else:
+        full_path = f'{base_path}/{repo_path}'
+    if not os.path.isdir(full_path):
+        pathlib.Path(full_path).mkdir(parents=True, exist_ok=True)
+    bb.save_json(f'{full_path}/{name}', doc)
+
 
 def atlas_users(details = {}):
     url = base_url + f'/orgs/{settings["org_id"]}/users?pretty=true'
@@ -1010,6 +1074,8 @@ if __name__ == "__main__":
         atlas_user_audit()
     elif ARGS["action"] == "cluster_audit":
         atlas_cluster_audit()
+    elif ARGS["action"] == "atlas_monitoring":
+        atlas_monitoring()
     elif ARGS["action"] == "cluster_info":
         atlas_cluster_info()
     elif ARGS["action"] == "create_cluster":

@@ -18,9 +18,9 @@ import getopt
 import copy
 import pymongo
 import bson
-import gcp_psc_create_template as gcptemp
+#TODO: import gcp_psc_create_template as gcptemp
 from bson.objectid import ObjectId
-from mdb_util import Util
+from bb_util import Util #TODO: uncomment
 import requests
 from requests.auth import HTTPDigestAuth
 from pymongo import MongoClient
@@ -31,7 +31,7 @@ from pymongo import MongoClient
   Call v1 rest api for Atlas
 #
 '''
-settings_file = "rest_settings.json"
+settings_file = "atlas_rest_settings_v3.json"
 temp_settings_file = "temp_settings.json"
 tempsettings={}
 
@@ -451,6 +451,12 @@ def azure_create_private_endpoint(details = {}):
 
 def azure_create_private_endpoint_service(details = {}):
     # Use azure CLI to create PE
+    '''
+    # Test Notes:
+    ENVS: 
+        Atlas_Project_Name - what you think
+        Resrouce_Group - has some "US_" in it
+    '''
     provider = "AZURE"
     project_id = settings["project_id"]
     if "Atlas_Project_Name" in os.environ:
@@ -1058,7 +1064,7 @@ def atlas_log_files(details = {"verbose" : True}):
     members = c_string.split(",")
     for node in members:
         host = node.replace("mongodb://","")
-        host = re.sub("\:27017.*","",host)
+        host = re.sub(":27017.*","",host) #TODO: removed \
         get_log_file(host, start_time, end_time, log_dir, details)
 
 
@@ -1346,7 +1352,7 @@ if __name__ == "__main__":
         bb.logit(f'Encrypted: {res}')
     elif ARGS["action"] == "decrypt":
         res = bb.desecret(ARGS["secret"])
-        bb.logit(f'Decrypted: {res}',"SECRET")
+        bb.logit(f'Decrypted: {res}')
     elif ARGS["action"] == "get_url":
         rest_get_url()
     elif ARGS["action"] == "project_info":

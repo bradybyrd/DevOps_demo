@@ -1,16 +1,29 @@
 {
-    "uri" : "mongodb+srv://m10basicagain-vmwqj.mongodb.net",
+    "uri" : "mongodb+srv://claims-demo.vmwqj.mongodb.net",
     "cluster_name" : "DBEng-Automation-Demo",
     "database" : "billing",
     "collection" : "paths",
     "username" : "main_admin",
     "password" : "*********",
     "version" : "1.0",
-      "base_url" : "https://cloud.mongodb.com/api/atlas/v1.0",
-    "dba_email" : ["khanm@cvshealth.com" , "shaika2@cvshealth.com" , "cenajarro@cvshealth.com"],
+    "base_url" : "https://cloud.mongodb.com/api/atlas/v1.0",
+    "api_key": "c3NianRjdGc6ZjAzY2ZlZWItZjA2MS00Yjc1LTgzODAtMjZiZTQwOWQzYjhm",
+    "dba_email" : ["simone.gaiera@mongodb.com" , "brady.byrd@mongodb.com" , "scott.capista@mongodb.com"],
     "atlas_organization" : {
       "DBENG_PoC" : {"org_id" : "630538197ac40167f2905dc0", "api_key" : "YmhtZnl3cm86NTUzZmM0ZDMtZjQzMC00NDBkLWFlNjUtNDhhOGVhZDNiMTk3", "sa_nonprod_key" : "gcp-xxx-nonprod-xxxx-key", "sa_prod_key" : "gcp-xxx-prod-xxxx-key"}
       },
+    "organizations" : [
+        {"name" : "SA-NA-NE-01", "org_id" : "", "api_key": "c3NianRjdGc6ZjAzY2ZlZWItZjA2MS00Yjc1LTgzODAtMjZiZTQwOWQzYjhm", "projects" : {
+            "Byrd" : {"id": "5d4d7ed3f2a30b18f4f88946", "api_key": "c3NianRjdGc6ZjAzY2ZlZWItZjA2MS00Yjc1LTgzODAtMjZiZTQwOWQzYjhm"},
+            "scapista" : {"id": "61f8088aebf01d472453fe94"}
+            }
+        },
+        {"name" : "SA-NA-NORTH-01", "org_id" : "5e384d3179358e03d842ead1", "api_key": "c3NianRjdGc6ZjAzY2ZlZWItZjA2MS00Yjc1LTgzODAtMjZiZTQwOWQzYjhm", "projects" : {
+            "Jeegar" : {"id": "5d4d7ed3f2a30b18f4f88946", "api_key": "c3NianRjdGc6ZjAzY2ZlZWItZjA2MS00Yjc1LTgzODAtMjZiZTQwOWQzYjhm"},
+            "ahaas" : {"id": "61f8088aebf01d472453fe94"}
+            }
+        }
+    ],
     "templates" : {
       "AZURE_M10_EAST_2" : {"tier": "M10" , "provider" : "AZURE" ,"region" : "US_EAST_2", "disk_gb" : 32},
       "AZURE_M20_EAST_2" : {"tier": "M20" , "provider" : "AZURE" ,"region" : "US_EAST_2", "disk_gb" : 32},

@@ -98,8 +98,8 @@ class Util:
     
     def save_json(self, json_file, data, is_path = True):
         if is_path:
-            with open(json_file, 'w') as outfile:
-                json.dump(data, outfile)
+            with open(json_file, 'w+') as outfile:
+                outfile.write(json.dumps(data, indent=2, sort_keys=False, default=str))
         else:
             result =json.dump(data, outfile)
 

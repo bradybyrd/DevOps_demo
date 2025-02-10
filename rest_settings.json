@@ -6,6 +6,7 @@
     "username" : "main_admin",
     "password" : "*********",
     "version" : "1.0",
+    "repo_path" : "/Users/brady.byrd/Documents/mongodb/dev/devops_atlas/config_repo",
     "project_id" : "5d4d7ed3f2a30b18f4f88946",
     "org_id" : "5e384d3179358e03d842ead1",
     "api_key" : "------------------------------------------",
