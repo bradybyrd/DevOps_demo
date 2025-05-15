@@ -14,6 +14,8 @@ import time
 import re
 import multiprocessing
 import pprint
+import git
+import urllib
 import getopt
 import copy
 import bson
@@ -22,6 +24,8 @@ from bb_util import Util
 import requests
 from requests.auth import HTTPDigestAuth
 from pymongo import MongoClient
+from pymongo import UpdateOne
+from pymongo.errors import BulkWriteError
 
 '''
 #------------------------------------------#
@@ -119,17 +123,16 @@ def atlas_monitoring():
     orgs = settings["organizations"]
     bulk_docs = []
     bulk_projects = []
-    icnt = 0
-    out_path = ""
+    project_updates = []
+    cluster_updates = []
     o_contents = {}
     p_contents = {}
-    repo = "config"
+    base_path = settings["repo_path"]
     bb.message_box("Atlas Cluster Audit","title")
-    if "repo" in ARGS:
-        repo = ARGS["repo"]
+    repo = git.Repo(base_path)
     for org in orgs:
         bb.message_box(f'Organization: {org}')
-        org_info = {"organization" : org, "id" : orgs[org]["org_id"], "api_key" : orgs[org]["api_key"], "quiet" : "yes"}
+        org_info = {"org" : org, "id" : orgs[org]["org_id"], "api_key" : orgs[org]["api_key"], "quiet" : "yes"}
         org_doc = {"name" : org, "org_id" : org_info["id"]}
         o_contents = {"name" : org, "org_id" : org_info["id"], "projects" : []}
         result = atlas_project_info(org_info)
@@ -138,49 +141,246 @@ def atlas_monitoring():
             next
         for proj in result:
             bb.logit(f'Clusters: [{proj["clusterCount"]}]')
+            doc_type = "clusters"
             org_info["project_id"] = proj["id"]
-            project_details = {"org" : org_doc, "project_id" : proj["id"], "name" : proj["name"], "project" : proj}
-            p_contents = {"org" : org_doc, "project_id" : proj["id"], "name" : proj["name"], "project" : proj, "clusters" : []}
+            project_details = {"object_type": "Project", "org" : org_doc, "project_id" : proj["id"], "name" : proj["name"], "project" : proj}
+            p_contents = {"org" : org_doc, "project_id" : proj["id"], "name" : proj["name"], "project" : proj, "clusters" : [], "version" : "1.0"}
             clust_info = atlas_cluster_info(org_info)
+            cluster_mini = []
             for cluster in clust_info:
                 bb.logit(f'Cluster: {cluster["name"]} - {cluster["providerSettings"]["instanceSizeName"]}')
+                cluster_doc["object_type"] = "Cluster"
                 cluster_doc = {"organization" : org_doc}
                 cluster_doc["project_id"] = proj["id"]
                 cluster_doc["project"] = proj["name"]
                 cluster_doc["cluster_id"] = cluster["id"]
                 cluster_doc["cluster_name"] = cluster["name"]
-                cluster_doc["timestamp"] = dt.datetime.now()
+                #cluster_doc["timestamp"] = dt.datetime.now()
                 cluster_doc["cluster_details"] = cluster
-                bulk_docs.append(cluster_doc)
-                p_contents["clusters"].append(cluster_doc)
-            create_repo_document(repo, org, p_contents)
+                cluster_doc["online_archive"] = atlas_online_archive_details({"project_id" : proj["id"], "org" : org, "cluster_name" : cluster["name"], "quiet": "yes"})
+                cluster_doc["version"] = "1.0"
+                #bulk_docs.append(cluster_doc)
+                cluster_mini.append({"cluster_id" :cluster["id"], "cluster_name": cluster["name"], "size" : cluster["providerSettings"]["instanceSizeName"], "cloud" : cluster["providerSettings"]["providerName"]})
+                cluster_updates.append(UpdateOne({"_id": cluster["id"]},{"$set": cluster_doc}, upsert=True))
+            p_contents["clusters"] = cluster_mini
+            create_repo_document(repo, org, p_contents, doc_type)
+            project_details["clusters"] = cluster_mini
             o_contents["projects"].append(project_details)
-            bulk_projects.append(project_details)
-        create_repo_document(repo, org, o_contents)
+            project_details["users"] = atlas_project_users({"project_id" : proj["id"], "org" : org, "quiet": "yes"})
+            project_details["database_users"] = atlas_database_users({"project_id" : proj["id"], "org" : org, "quiet": "yes"})
+            #bulk_projects.append(project_details)
+            project_updates.append(UpdateOne({"project_id": proj["id"]},{"$set": project_details}, upsert=True))
+        create_repo_document(repo, org, o_contents, "projects")
     bb.logit("# ------------- Complete ------------- #")
+    bb.message_box("Checking git", "title")
+    #git_check(repo)
+    client = client_connection()
+    db = client["cmdb"]
+    bulk_writer(db["atlas_objects"], project_updates)
+    bulk_writer(db["atlas_objects"], cluster_updates)
+    client.close()
     #  Find the way here to push to ServiceNow
-    pprint.pprint(bulk_projects)
+    #pprint.pprint(bulk_projects)
     #pprint.pprint(bulk_docs)
 
-def create_repo_document(repo_path,local_path, doc):
+def create_repo_document(repo_obj,local_path, doc, doc_type):
     # take the info and push to a json document in a git repo
-    la = "di da"
-    base_path = settings["repo_path"]
+    base_path = repo_obj.working_tree_dir
     name = "newfile_39586.json"
     #pprint.pprint(doc)
     if "name" in doc:
-        name = doc["name"]
+        name = f'{doc["name"]}_{doc_type}.json'
     if local_path != "":
-        full_path = f'{base_path}/{repo_path}/{local_path}'
+        full_path = f'{base_path}/{local_path}'
     else:
-        full_path = f'{base_path}/{repo_path}'
+        full_path = f'{base_path}'
     if not os.path.isdir(full_path):
         pathlib.Path(full_path).mkdir(parents=True, exist_ok=True)
     bb.save_json(f'{full_path}/{name}', doc)
 
+def git_check(repo = ""):
+    if repo == "":
+        base_path = settings["repo_path"]
+        repo = git.Repo(base_path)
+    if repo.is_dirty(untracked_files=True):
+        bb.logit(f'Repository: {repo.working_tree_dir}')
+        bb.logit("Changes to configuration")
+        bb.logit(repo.git.status())
+        repo.git.add(all=True)
+        bb.logit("# -------------------- Changes ---------------------- #")
+        bb.logit(repo.git.status())
+        repo.index.commit("Update from automation")
+        bb.logit("# -- committed -- #")
+    else:
+        bb.logit("Atlas config is stable")
 
-def atlas_users(details = {}):
-    url = base_url + f'/orgs/{settings["org_id"]}/users?pretty=true'
+def git_analyze_changes(repo = ""):
+    if repo == "":
+        base_path = settings["repo_path"]
+        repo = git.Repo(base_path)
+    # Compare the last two commits
+    head_commit = repo.head.commit
+    parent_commit = head_commit.parents[0]
+    diff_index = parent_commit.diff(head_commit, create_patch=True)
+    for diff in diff_index:
+        bb.logit(f"File: {diff.a_path} -> {diff.b_path}")
+        # Determine the change type (added, deleted, modified, etc.)
+        if diff.change_type == 'A':
+            bb.logit("Added:", diff.b_path)
+        elif diff.change_type == 'D':
+            bb.logit("Deleted:", diff.a_path)
+        elif diff.change_type == 'M':
+            bb.logit("Modified:", diff.a_path)
+        elif diff.change_type == 'R':
+            bb.logit(f"Renamed: {diff.a_path} -> {diff.b_path}")
+        elif diff.change_type == 'T':
+            bb.logit(f"Type Change: {diff.a_path} to {diff.b_path}")
+        # Access diff details
+        bb.logit("Diff details:")
+        #pprint.pprint(diff.diff)
+        pprint.pprint(diff.diff.decode())
+        print("\n# " + "-" * 76 + " #\n")
+
+def change_details(file_name, change, line_num):
+    print(f'In file: {repo_path}/{file_name}')
+    contents = bb.read_json(f'{repo_path}/{file_name}')
+    find_keys(contents, {"target" : line_num})
+
+def find_keys(conts, details):
+    """
+    Recursively counts all the keys in a complex dictionary.
+    :param d: The dictionary to count keys in.
+    :return: The total count of keys.
+    """
+    key_count = 0
+    start_count = 0
+    if "key_count" in details:
+        start_count = details["key_count"]
+    jpath = []
+    if "jpath" in details:
+        jpath = details["jpath"]
+            
+    target = details["target"]
+    # Ensure that the input is actually a dictionary
+    if isinstance(conts, dict):
+        # Count the keys at the current level
+        for key, value in conts.items():
+            key_count += 1
+            # If the value is another dictionary, recurse into it
+            if isinstance(value, dict):
+                jpath.append(key)
+                details["key_count"] = key_count
+                details["jpath"] = jpath
+                key_count += find_keys(value, details)
+                if show_me(target, key_count + start_count, jpath):
+                    break
+                else:
+                    if key in jpath:
+                        jpath.remove(key)
+            # If the value is a list, check each item in the list
+            elif isinstance(value, list):
+                jpath.append(key)
+                for item in value:
+                    details["key_count"] = key_count
+                    if isinstance(item, dict):
+                        details["key_count"] = key_count
+                        details["jpath"] = jpath
+                        key_count += find_keys(item, details) 
+                        if show_me(target, key_count + start_count, jpath):
+                            break
+                        else:
+                            if key in jpath:
+                                jpath.remove(key)
+                    else:
+                        key_count += 1
+                        if show_me(target, key_count + start_count, jpath):
+                            break
+                if key in jpath:
+                    jpath.remove(key)
+            else:
+                if show_me(target, key_count + start_count, jpath):
+                    break
+    return key_count
+
+def show_me(matcher, num, pth):
+    #print(pth)
+    result = False
+    if matcher == num:
+        print(f'HIT - [{num}] - {",".join(pth)}')
+        result = True
+    else:
+        print(f'[{matcher}] != [{num}] - {",".join(pth)}')
+    return result
+
+def git_diff():
+    # Choose the commits to compare. For example, compare the last two commits
+    head_commit = repo.head.commit
+    parent_commit = head_commit.parents[0]
+    re_pattern = r"\+(\d+),"
+    # Get the diff between the head commit and its first parent
+    diff_index = parent_commit.diff(head_commit, create_patch=True)
+
+    # Iterate over the diff
+    for diff in diff_index:
+        file_name = diff.a_path
+        print(f"File: {diff.a_path} -> {diff.b_path}")
+
+        # Determine the change type (added, deleted, modified, etc.)
+        if diff.change_type == 'A':
+            print("Added:", diff.b_path)
+        elif diff.change_type == 'D':
+            print("Deleted:", diff.a_path)
+        elif diff.change_type == 'M':
+            print("Modified:", diff.a_path)
+        elif diff.change_type == 'R':
+            print(f"Renamed: {diff.a_path} -> {diff.b_path}")
+        elif diff.change_type == 'T':
+            print(f"Type Change: {diff.a_path} to {diff.b_path}")
+
+        # Access diff details
+        print("Diff details:")
+        #pprint.pprint(diff.diff)
+        diff_out = diff.diff.decode()
+        pprint.pprint(diff_out)
+        print("# --- Change Analysis --- #")
+        ipos = 0
+        line_num = 0
+        match_line = ""
+        for ln in diff_out.split('\n'):
+            if "@@" in ln:
+                match = re.search(re_pattern, ln)
+                line_num = int(match[0].replace("+","").replace(",",""))
+            if "+    " in ln:
+                match_line = ln.replace("+    ","")
+                print(f'- added: {match_line}')                
+            elif "-    " in ln:
+                rmatch_line = ln.replace("-    ","")
+                print(f'- removed: {rmatch_line}')
+            ipos += 1
+            if line_num > 0 and match_line != "":
+                change_details(file_name, match_line, line_num)
+            line_num = 0
+            match_line = ""
+
+
+        print("\n" + "=" * 80 + "\n")   
+
+def atlas_org_users(details = {}):
+    org_id = settings["org_id"]
+    if "org_id" in details:
+        org_id = details["org_id"]
+    url = base_url + f'/orgs/{org_id}/users?pretty=true'
+    result = rest_get(url, details)
+    if not "quiet" in details:
+        bb.message_box("Atlas User Info", "title")
+        pprint.pprint(result)
+    return result["results"]
+
+def atlas_project_users(details = {}):
+    project_id = settings["project_id"]
+    if "project_id" in details:
+        project_id = details["project_id"]
+    url = base_url + f'/groups/{project_id}/users?pretty=true'
     result = rest_get(url, details)
     if not "quiet" in details:
         bb.message_box("Atlas User Info", "title")
@@ -202,7 +402,7 @@ def atlas_user_audit(details = {}):
     bb.message_box("User Rights Audit", "title")
     #clusters = atlas_cluster_info({"quiet" : True, "all" : True})
     projects = atlas_project_info({"quiet" : True})
-    org_users = atlas_users({"quiet" : True})
+    org_users = atlas_org_users({"quiet" : True})
     client = client_connection()
     db = client[settings["database"]]
     collection = "user_audit"
@@ -819,7 +1019,7 @@ def get_log_file(cluster, start, end, log_path, details = {}):
         pprint.pprint(result)
     return result #result["results"]
 
-def atlas_online_archive():
+def atlas_create_online_archive():
     # POST /groups/{GROUP-ID}/clusters/{CLUSTER-NAME}/onlineArchives
     if "json" not in ARGS:
         print("Send json=<file_path>")
@@ -831,11 +1031,26 @@ def atlas_online_archive():
     bb.message_box("Response")
     pprint.pprint(result)
 
+def atlas_online_archive_details(details = {}):
+    # GET /groups/{GROUP-ID}/clusters/{CLUSTER-NAME}/onlineArchives
+    project_id = settings["project_id"]
+    cluster_name = settings["cluster_name"]
+    if "project_id" in details:
+        project_id = details["project_id"]
+        cluster_name = details["cluster_name"]
+    url = base_url + f'/groups/{project_id}/clusters/{cluster_name}/onlineArchives'
+    result = rest_get(url, details)
+    if not "quiet" in details:
+        bb.message_box("Response")
+        pprint.pprint(result)
+    return result
+
 # ------------------------------------------------------------ #
 #    UTILITY
 # ------------------------------------------------------------ #
 def get_api_key(details = {}):
     if "org" in details:
+        org = details["org"]
         result = settings["organizations"][org]["api_key"]
     else:
         result = api_key
@@ -847,7 +1062,7 @@ def rest_get(url, details = {}):
         headers = details["headers"]
     api_pair = bb.desecret(get_api_key(details)).split(":")
     response = requests.get(url, auth=HTTPDigestAuth(api_pair[0], api_pair[1]), headers=headers)
-    result = response.content.decode('ascii')
+    result = response.content.decode('utf-8')
     if "verbose" in details:
         bb.logit(f"Status: {response.status_code}")
         bb.logit(f"Headers: {response.headers}")
@@ -861,7 +1076,7 @@ def rest_get_url():
     secret = ARGS["secret"]
     headers = {"Content-Type" : "application/json", "Accept" : "application/json" }
     response = requests.get(url, auth=HTTPDigestAuth(key, secret), headers=headers)
-    result = response.content.decode('ascii')
+    result = response.content.decode('utf-8')
     bb.logit(f"Status: {response.status_code}")
     bb.logit(f"Headers: {response.headers}")
     bb.logit(f"URL: {url}")
@@ -871,7 +1086,7 @@ def rest_get_url():
 def rest_get_ip():
   url="http://api.ipify.org"
   response = requests.get(url)
-  result = response.content.decode('ascii')
+  result = response.content.decode('utf-8')
   bb.logit(f"URL: {url}")
   bb.logit(f"Response: {result}")
   pprint.pprint(result)
@@ -941,6 +1156,18 @@ def rest_update(url, details = {}):
       bb.logit(f"Response: {json.dumps(result)}")
   return(result) #json.loads(result))
 
+def bulk_writer(collection, bulk_arr, msg = ""):
+    try:
+        result = collection.bulk_write(bulk_arr, ordered=False)
+        ## result = db.test.bulk_write(bulkArr, ordered=False)
+        # Opt for above if you want to proceed on all dictionaries to be updated, even though an error occured in between for one dict
+        #pprint.pprint(result.bulk_api_result)
+        note = f'BulkWrite - mod: {result.bulk_api_result["nModified"]} {msg}'
+        #file_log(note,locker,hfile)
+        print(note)
+    except BulkWriteError as bwe:
+        print("An exception occurred ::", bwe.details)
+
 def test_shell():
   cmd = ["which", "curl"]
   result = bb.run_shell(cmd)
@@ -1005,6 +1232,10 @@ def client_connection(type = "uri", details = {}):
     if "username" in details:
         username = details["username"]
         password = details["password"]
+    if "secret" in password:
+        password = os.environ.get("_PWD_")
+    if "%" not in password:
+        password = urllib.parse.quote_plus(password)
     mdb_conn = mdb_conn.replace("//", f'//{username}:{password}@')
     bb.logit(f'Connecting: {mdb_conn}')
     if "readPreference" in details:
@@ -1036,6 +1267,8 @@ if __name__ == "__main__":
         atlas_project_info()
     elif ARGS["action"] == "project_detail":
         atlas_project_detail()
+    elif ARGS["action"] == "project_users":
+        atlas_project_users()
     elif ARGS["action"] == "alert_settings":
         atlas_project_alerts()
     elif ARGS["action"] == "private_links":
@@ -1064,8 +1297,8 @@ if __name__ == "__main__":
         atlas_department_accounting()
     elif ARGS["action"] == "user_add":
         atlas_user_add()
-    elif ARGS["action"] == "users":
-        atlas_users()
+    elif ARGS["action"] == "org_users":
+        atlas_org_users()
     elif ARGS["action"] == "database_users":
         atlas_database_users()
     elif ARGS["action"] == "db_user_audit":
@@ -1086,8 +1319,10 @@ if __name__ == "__main__":
         atlas_resume_cluster()
     elif ARGS["action"] == "update_cluster_labels":
         updateClusterLabels()
-    elif ARGS["action"] == "online_archive":
-        atlas_online_archive()
+    elif ARGS["action"] == "create_online_archive":
+        atlas_create_online_archive()
+    elif ARGS["action"] == "online_archives":
+        atlas_online_archive_details()
     elif ARGS["action"] == "search_indexes":
         # cluster, database, collection
         atlas_search_indexes()
@@ -1114,6 +1349,8 @@ if __name__ == "__main__":
         rest_get_ip()
     elif ARGS["action"] == "test_driver":
         test_driver()
+    elif ARGS["action"] == "test_git":
+        git_check()
     else:
         print(f'{ARGS["action"]} not found')
 

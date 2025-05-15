@@ -52,16 +52,29 @@ class Util:
             cleaned = cleaned.replace(item, "*******")
         return cleaned
 
-    def run_shell(self, cmd = ["ls", "-l"]):
-        self.logit(f'Running: {" ".join(cmd)}')
-        result = subprocess.run(cmd, capture_output=True)
-        self.logit("The exit code was: %d" % result.returncode)
-        self.logit("#--------------- STDOUT ---------------#")
-        self.logit(result.stdout.decode('ascii'))
-        if result.stderr:
-            self.logit("#--------------- STDERR ---------------#")
-            self.logit(result.stderr.decode('ascii'))
-        return result
+    def run_shell(self, cmd = ["ls", "-l"], details = {}):
+        quiet = "quiet" in details
+        if not quiet:
+            self.logit(f'Running: {" ".join(cmd)}')
+        if "dir" in details:
+            rawresult = subprocess.run(cmd, capture_output=True, cwd=details["dir"])
+        else:
+            rawresult = subprocess.run(cmd, capture_output=True)
+        if not quiet:
+            self.logit("The exit code was: %d" % rawresult.returncode)
+        if not quiet:
+            self.logit("#--------------- STDOUT ---------------#")
+        stdout = rawresult.stdout.decode('ascii')
+        stderr = ""
+        if not quiet:
+            self.logit(stdout)
+        if rawresult.stderr:
+            if not quiet:
+                self.logit("#--------------- STDERR ---------------#")
+            stderr = rawresult.stderr.decode('ascii')
+            if not quiet:
+                self.logit(stderr)    
+        return {"cmd" : cmd, "stdout" : stdout, "stderr" : stderr, "returncode" : rawresult.returncode}
 
     def separator(self, ilength = 102):
         dashy = "-" * (ilength - 2)
