@@ -1,8 +1,0 @@
-{
-  "databaseName" : "admin",
-  "roles" : [
-    {"databaseName" : "admin", "roleName" : "MyNewRole"}
-  ],
-  "username" : "MyNewUser",
-  "password" : "doublesecret"
-}
